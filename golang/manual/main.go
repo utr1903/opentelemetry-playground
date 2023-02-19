@@ -24,7 +24,6 @@ func main() {
 	// Create a new tracer provider with a batch span processor and the given exporter
 	tp := newTraceProvider()
 
-	// Handle shutdown properly so nothing leaks
 	// Cleanly shutdown and flush telemetry when the application exits.
 	defer func(ctx context.Context) {
 		// Do not make the application hang when it is shutdown.
@@ -39,7 +38,7 @@ func main() {
 	otel.SetTracerProvider(tp)
 
 	// Set the tracer that can be used for this package
-	tracer = tp.Tracer("ExampleService")
+	tracer = otel.GetTracerProvider().Tracer("main")
 
 	http.HandleFunc("/", httpHandler)
 	http.ListenAndServe(":8080", nil)
