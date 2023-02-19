@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -15,8 +16,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
-
-var tracer trace.Tracer
 
 func main() {
 	// Get context
@@ -35,10 +34,7 @@ func main() {
 		}
 	}(ctx)
 
-	// Set the tracer that can be used for this package
-	tracer = otel.GetTracerProvider().Tracer("main")
-
-	http.HandleFunc("/", httpHandler)
+	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "Hello"))
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -61,18 +57,21 @@ func newTraceProvider() *sdktrace.TracerProvider {
 			semconv.ServiceNameKey.String("ExampleService"),
 		),
 	)
-
 	if err != nil {
 		panic(err)
 	}
 
+	// Create trace provider
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 	)
 
+	// Set global trace provider
 	otel.SetTracerProvider(tp)
+
+	// Set trace propagator
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{},
@@ -82,10 +81,12 @@ func newTraceProvider() *sdktrace.TracerProvider {
 	return tp
 }
 
-func httpHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := tracer.Start(r.Context(), "hello-span")
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+	// Get current span
+	span := trace.SpanFromContext(r.Context())
 	defer span.End()
 
+	// Set additional span attributes
 	span.SetAttributes(
 		attribute.Bool("exampleBool", true),
 		attribute.String("exampleString", "Hey!"),
