@@ -9,8 +9,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
@@ -30,6 +33,20 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		if err := tp.Shutdown(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}(ctx)
+
+	mp, err := newMetricProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Cleanly shutdown and flush telemetry when the application exits.
+	defer func(ctx context.Context) {
+		// Do not make the application hang when it is shutdown.
+		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+		defer cancel()
+		if err := mp.Shutdown(ctx); err != nil {
 			log.Fatal(err)
 		}
 	}(ctx)
@@ -79,6 +96,17 @@ func newTraceProvider() *sdktrace.TracerProvider {
 		))
 
 	return tp
+}
+
+func newMetricProvider() (*sdkmetric.MeterProvider, error) {
+	exp, err := stdoutmetric.New()
+	if err != nil {
+		return nil, err
+	}
+
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
+	global.SetMeterProvider(mp)
+	return mp, nil
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
