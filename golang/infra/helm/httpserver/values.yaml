@@ -41,3 +41,5 @@ mysql:
   port: 3306
   # Database
   database: ""
+  # Table
+  table: ""

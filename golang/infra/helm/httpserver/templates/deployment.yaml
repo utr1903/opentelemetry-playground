@@ -30,6 +30,8 @@ spec:
               value: "{{ .Values.mysql.port }}"
             - name: MYSQL_DATABASE
               value: {{ .Values.mysql.database }}
+            - name: MYSQL_TABLE
+              value: {{ .Values.mysql.table }}
             - name: OTEL_SERVICE_NAME
               value: {{ .Values.name }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
