@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -50,6 +54,36 @@ func main() {
 			log.Fatal(err)
 		}
 	}(ctx)
+
+	// Connect to MySQL
+	datasourceName := os.Getenv("MYSQL_USERNAME") + ":" + os.Getenv("MYSQL_PASSWORD") + "@tcp(" + os.Getenv("MYSQL_SERVER") + ":" + os.Getenv("MYSQL_PORT") + ")/"
+	db, err := sql.Open("mysql", datasourceName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// Create the database
+	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + os.Getenv("MYSQL_DATABASE"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Database is created successfully!")
+
+	// Use the database
+	_, err = db.Exec("USE " + os.Getenv("MYSQL_DATABASE"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create the table
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS " + os.Getenv("MYSQL_TABLE") + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Table is created successfully!")
 
 	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "Hello"))
 	http.ListenAndServe(":8080", nil)
