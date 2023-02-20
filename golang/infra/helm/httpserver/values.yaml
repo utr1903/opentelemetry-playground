@@ -1,0 +1,45 @@
+### Variables
+
+# Name
+name: httpserver
+
+# Port
+port: 8080
+
+# Replicas
+replicas: 1
+
+# Resources
+resources:
+  # Requests
+  requests:
+    # CPU
+    cpu: 20m
+    # Memory
+    memory: 50Mi
+  # Limits
+  limits:
+    # CPU
+    cpu: 800m
+    # Memory
+    memory: 1000Mi
+
+# Endpoints
+endpoints:
+  # OTLP
+  otlp: "https://otlp.nr-data.net:4317"
+
+# MySQL
+mysql:
+  # Server path
+  server: ""
+  # Username
+  username: "root"
+  # Password
+  password: ""
+  # Port
+  port: 3306
+  # Database
+  database: ""
+  # Table
+  table: ""
