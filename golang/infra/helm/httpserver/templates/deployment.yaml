@@ -20,6 +20,8 @@ spec:
           env:
             - name: APP_NAME
               value: {{ .Values.name }}
+            - name: APP_PORT
+              value: "{{ .Values.port }}"
             - name: MYSQL_SERVER
               value: {{ .Values.mysql.server }}
             - name: MYSQL_USERNAME
