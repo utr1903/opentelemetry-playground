@@ -3,6 +3,18 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
+)
+
+var (
+	mysqlServer   = os.Getenv("MYSQL_SERVER")
+	mysqlUsername = os.Getenv("MYSQL_USERNAME")
+	mysqlPassword = os.Getenv("MYSQL_PASSWORD")
+	mysqlDatabase = os.Getenv("MYSQL_DATABASE")
+	mysqlTable    = os.Getenv("MYSQL_TABLE")
+	mysqlPort     = os.Getenv("MYSQL_PORT")
+
+	db *sql.DB
 )
 
 func createDatabaseConnection() *sql.DB {

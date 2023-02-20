@@ -167,6 +167,7 @@ helm upgrade ${httpserver[name]} \
   --set mysql.port=${mysql[port]} \
   --set mysql.database=${mysql[database]} \
   --set mysql.table=${mysql[table]} \
-  --set otlp.endpoints="https://otlp.eu01.nr-data.net:4317" \
+  --set otel.exporter="otlp" \
+  --set otlp.endpoint="https://otlp.eu01.nr-data.net:4317" \
   --set otlp.headers="Api-Key=${NEWRELIC_LICENSE_KEY}" \
   "../helm/httpserver"

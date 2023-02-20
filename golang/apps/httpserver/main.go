@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,29 +14,18 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var (
-	appPort = os.Getenv("APP_PORT")
-
-	mysqlServer   = os.Getenv("MYSQL_SERVER")
-	mysqlUsername = os.Getenv("MYSQL_USERNAME")
-	mysqlPassword = os.Getenv("MYSQL_PASSWORD")
-	mysqlDatabase = os.Getenv("MYSQL_DATABASE")
-	mysqlTable    = os.Getenv("MYSQL_TABLE")
-	mysqlPort     = os.Getenv("MYSQL_PORT")
-
-	db *sql.DB
-)
+var appPort = os.Getenv("APP_PORT")
 
 func main() {
 	// Get context
 	ctx := context.Background()
 
 	// Create tracer provider
-	tp := newTraceProvider()
+	tp := newTraceProvider(ctx)
 	defer shutdownTraceProvider(ctx, tp)
 
 	// Create metric provider
-	mp := newMetricProvider()
+	mp := newMetricProvider(ctx)
 	defer shutdownMetricProvider(ctx, mp)
 
 	// Connect to MySQL
