@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -37,13 +36,13 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	}(ctx)
 
 	mp, err := newMetricProvider()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	// Cleanly shutdown and flush telemetry when the application exits.
 	defer func(ctx context.Context) {
@@ -51,40 +50,15 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		if err := mp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	}(ctx)
 
 	// Connect to MySQL
-	datasourceName := os.Getenv("MYSQL_USERNAME") + ":" + os.Getenv("MYSQL_PASSWORD") + "@tcp(" + os.Getenv("MYSQL_SERVER") + ":" + os.Getenv("MYSQL_PORT") + ")/"
-	db, err := sql.Open("mysql", datasourceName)
-	if err != nil {
-		log.Fatal(err)
-	}
+	db := createDatabaseConnection()
 	defer db.Close()
 
-	// Create the database
-	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + os.Getenv("MYSQL_DATABASE"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Database is created successfully!")
-
-	// Use the database
-	_, err = db.Exec("USE " + os.Getenv("MYSQL_DATABASE"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create the table
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS " + os.Getenv("MYSQL_TABLE") + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Table is created successfully!")
-
+	// Serve
 	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "Hello"))
 	http.ListenAndServe(":8080", nil)
 }
@@ -140,6 +114,40 @@ func newMetricProvider() (*sdkmetric.MeterProvider, error) {
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
 	global.SetMeterProvider(mp)
 	return mp, nil
+}
+
+func createDatabaseConnection() *sql.DB {
+	// Connect to MySQL
+	datasourceName := os.Getenv("MYSQL_USERNAME") + ":" + os.Getenv("MYSQL_PASSWORD") + "@tcp(" + os.Getenv("MYSQL_SERVER") + ":" + os.Getenv("MYSQL_PORT") + ")/"
+	db, err := sql.Open("mysql", datasourceName)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Create the database
+	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + os.Getenv("MYSQL_DATABASE"))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Database is created successfully!")
+
+	// Use the database
+	_, err = db.Exec("USE " + os.Getenv("MYSQL_DATABASE"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Create the table
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS " + os.Getenv("MYSQL_TABLE") + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Table is created successfully!")
+
+	return db
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
