@@ -71,7 +71,6 @@ func newTraceProvider() *sdktrace.TracerProvider {
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String("ExampleService"),
 		),
 	)
 	if err != nil {
@@ -80,7 +79,7 @@ func newTraceProvider() *sdktrace.TracerProvider {
 
 	// Create trace provider
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.NeverSample()),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 	)
