@@ -8,20 +8,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/propagation"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -42,126 +32,22 @@ func main() {
 	// Get context
 	ctx := context.Background()
 
-	// Create a new tracer provider with a batch span processor and the given exporter
+	// Create tracer provider
 	tp := newTraceProvider()
+	defer shutdownTraceProvider(ctx, tp)
 
-	// Cleanly shutdown and flush telemetry when the application exits.
-	defer func(ctx context.Context) {
-		// Do not make the application hang when it is shutdown.
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-		defer cancel()
-		if err := tp.Shutdown(ctx); err != nil {
-			panic(err)
-		}
-	}(ctx)
-
-	mp, err := newMetricProvider()
-	if err != nil {
-		panic(err)
-	}
-	// Cleanly shutdown and flush telemetry when the application exits.
-	defer func(ctx context.Context) {
-		// Do not make the application hang when it is shutdown.
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-		defer cancel()
-		if err := mp.Shutdown(ctx); err != nil {
-			panic(err)
-		}
-	}(ctx)
+	// Create metric provider
+	mp := newMetricProvider()
+	defer shutdownMetricProvider(ctx, mp)
 
 	// Connect to MySQL
-	createDatabaseConnection()
+	db = createDatabaseConnection()
 	defer db.Close()
 
 	// Serve
 	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "hello"))
 	http.Handle("/list", otelhttp.NewHandler(http.HandlerFunc(listHandler), "list"))
 	http.ListenAndServe(":"+appPort, nil)
-}
-
-func newTraceProvider() *sdktrace.TracerProvider {
-
-	// Create exporter
-	exp, err := stdouttrace.New(
-		// Use human readable output.
-		stdouttrace.WithPrettyPrint(),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	// Ensure default SDK resources and the required service name are set
-	r, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-		),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create trace provider
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithBatcher(exp),
-		sdktrace.WithResource(r),
-	)
-
-	// Set global trace provider
-	otel.SetTracerProvider(tp)
-
-	// Set trace propagator
-	otel.SetTextMapPropagator(
-		propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{},
-			propagation.Baggage{},
-		))
-
-	return tp
-}
-
-func newMetricProvider() (*sdkmetric.MeterProvider, error) {
-	exp, err := stdoutmetric.New()
-	if err != nil {
-		return nil, err
-	}
-
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
-	global.SetMeterProvider(mp)
-	return mp, nil
-}
-
-func createDatabaseConnection() {
-	// Connect to MySQL
-	datasourceName := mysqlUsername + ":" + mysqlPassword + "@tcp(" + mysqlServer + ":" + mysqlPort + ")/"
-	dbPtr, err := sql.Open("mysql", datasourceName)
-	if err != nil {
-		panic(err)
-	}
-	db = dbPtr
-
-	// Create the database
-	_, err = dbPtr.Exec("CREATE DATABASE IF NOT EXISTS " + mysqlDatabase)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Database is created successfully!")
-
-	// Use the database
-	_, err = dbPtr.Exec("USE " + mysqlDatabase)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create the table
-	_, err = dbPtr.Exec("CREATE TABLE IF NOT EXISTS " + mysqlTable + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Table is created successfully!")
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
