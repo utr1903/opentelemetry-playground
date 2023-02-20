@@ -24,10 +24,16 @@ resources:
     # Memory
     memory: 1000Mi
 
-# Endpoints
-endpoints:
-  # OTLP
-  otlp: "https://otlp.nr-data.net:4317"
+# OTel
+otel:
+  exporter: "stdout"
+
+# OTLP
+otlp:
+  # Endpoint  
+  endpoint: "https://otlp.nr-data.net:4317"
+  # Headers
+  headers: ""
 
 # MySQL
 mysql:
