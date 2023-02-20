@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -22,6 +24,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var db *sql.DB
 
 func main() {
 	// Get context
@@ -55,12 +59,13 @@ func main() {
 	}(ctx)
 
 	// Connect to MySQL
-	db := createDatabaseConnection()
+	createDatabaseConnection()
 	defer db.Close()
 
 	// Serve
-	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "Hello"))
-	http.ListenAndServe(":8080", nil)
+	http.Handle("/", otelhttp.NewHandler(http.HandlerFunc(helloHandler), "hello"))
+	http.Handle("/list", otelhttp.NewHandler(http.HandlerFunc(listHandler), "list"))
+	http.ListenAndServe(":"+os.Getenv("APP_PORT"), nil)
 }
 
 func newTraceProvider() *sdktrace.TracerProvider {
@@ -116,17 +121,17 @@ func newMetricProvider() (*sdkmetric.MeterProvider, error) {
 	return mp, nil
 }
 
-func createDatabaseConnection() *sql.DB {
+func createDatabaseConnection() {
 	// Connect to MySQL
 	datasourceName := os.Getenv("MYSQL_USERNAME") + ":" + os.Getenv("MYSQL_PASSWORD") + "@tcp(" + os.Getenv("MYSQL_SERVER") + ":" + os.Getenv("MYSQL_PORT") + ")/"
-	db, err := sql.Open("mysql", datasourceName)
+	dbPtr, err := sql.Open("mysql", datasourceName)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	db = dbPtr
 
 	// Create the database
-	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + os.Getenv("MYSQL_DATABASE"))
+	_, err = dbPtr.Exec("CREATE DATABASE IF NOT EXISTS " + os.Getenv("MYSQL_DATABASE"))
 	if err != nil {
 		panic(err)
 	}
@@ -134,20 +139,18 @@ func createDatabaseConnection() *sql.DB {
 	fmt.Println("Database is created successfully!")
 
 	// Use the database
-	_, err = db.Exec("USE " + os.Getenv("MYSQL_DATABASE"))
+	_, err = dbPtr.Exec("USE " + os.Getenv("MYSQL_DATABASE"))
 	if err != nil {
 		panic(err)
 	}
 
 	// Create the table
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS " + os.Getenv("MYSQL_TABLE") + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
+	_, err = dbPtr.Exec("CREATE TABLE IF NOT EXISTS " + os.Getenv("MYSQL_TABLE") + " (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL)")
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Table is created successfully!")
-
-	return db
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
@@ -163,4 +166,42 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Hello!"))
+}
+
+func listHandler(w http.ResponseWriter, r *http.Request) {
+	// Get current span
+	span := trace.SpanFromContext(r.Context())
+	defer span.End()
+
+	// Set additional span attributes
+	span.SetAttributes(
+		attribute.String("handler", "list"),
+	)
+
+	// Perform a query
+	rows, err := db.Query("SELECT name FROM " + os.Getenv("MYSQL_TABLE"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	// Iterate over the results
+	names := make([]string, 0, 10)
+	for rows.Next() {
+		var name string
+		err = rows.Scan(&name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Name: " + name)
+		names = append(names, name)
+	}
+
+	resBody, err := json.Marshal(names)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBody)
 }
