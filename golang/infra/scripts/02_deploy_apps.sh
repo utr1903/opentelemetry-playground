@@ -134,19 +134,31 @@ helm upgrade ${mysql[name]} \
   --set auth.database=${mysql[database]} \
     "bitnami/mysql"
 
-# # otelcollector
-# helm upgrade ${otelcollector[name]} \
-#   --install \
-#   --wait \
-#   --debug \
-#   --create-namespace \
-#   --namespace ${otelcollector[namespace]} \
-#   --set name=${otelcollector[name]} \
-#   --set mode=${otelcollector[mode]} \
-#   --set prometheus.port=${otelcollector[prometheusPort]} \
-#   --set newrelicOtlpEndpoint="otlp.eu01.nr-data.net:4317" \
-#   --set newrelicLicenseKey=$NEWRELIC_LICENSE_KEY \
-#   "../helm/otelcollector"
+# otelcollector
+helm upgrade ${otelcollector[name]} \
+  --install \
+  --wait \
+  --debug \
+  --create-namespace \
+  --namespace ${otelcollector[namespace]} \
+  --set mode=${otelcollector[mode]} \
+  --set config.receivers.jaeger=null \
+  --set config.receivers.prometheus=null \
+  --set config.receivers.zipkin=null \
+  --set config.exporters.logging=null \
+  --set config.exporters.otlp.endpoint="otlp.eu01.nr-data.net:4317" \
+  --set config.exporters.otlp.tls.insecure=false \
+  --set config.exporters.otlp.headers.api-key=$NEWRELIC_LICENSE_KEY \
+  --set config.service.pipelines.traces.receivers[0]="otlp" \
+  --set config.service.pipelines.traces.processors[0]="batch" \
+  --set config.service.pipelines.traces.processors[1]="memory_limiter" \
+  --set config.service.pipelines.traces.exporters[0]="otlp" \
+  --set config.service.pipelines.metrics.receivers[0]="otlp" \
+  --set config.service.pipelines.metrics.processors[0]="batch" \
+  --set config.service.pipelines.metrics.processors[1]="memory_limiter" \
+  --set config.service.pipelines.metrics.exporters[0]="otlp" \
+  --set config.service.pipelines.logs=null \
+  "open-telemetry/opentelemetry-collector"
 
 # httpserver
 helm upgrade ${httpserver[name]} \
@@ -168,6 +180,5 @@ helm upgrade ${httpserver[name]} \
   --set mysql.database=${mysql[database]} \
   --set mysql.table=${mysql[table]} \
   --set otel.exporter="otlp" \
-  --set otlp.endpoint="https://otlp.eu01.nr-data.net:4317" \
-  --set otlp.headers="Api-Key=${NEWRELIC_LICENSE_KEY}" \
+  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/httpserver"
