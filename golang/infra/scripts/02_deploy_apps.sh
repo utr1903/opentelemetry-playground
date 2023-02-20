@@ -47,8 +47,7 @@ prometheus["namespace"]="golang"
 declare -A kafka
 kafka["name"]="kafka"
 kafka["namespace"]="golang"
-kafka["topicnr"]="newrelic"
-kafka["topicotel"]="otel"
+kafka["topic"]="otel"
 
 # mysql
 declare -A mysql
