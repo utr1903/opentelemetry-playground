@@ -24,7 +24,13 @@ func listHandler(
 	defer parentSpan.End()
 
 	// Create db span
-	_, dbSpan := parentSpan.TracerProvider().Tracer(appName).Start(r.Context(), dbOperation+" "+mysqlDatabase+"."+mysqlTable)
+	_, dbSpan := parentSpan.TracerProvider().
+		Tracer(appName).
+		Start(
+			r.Context(),
+			dbOperation+" "+mysqlDatabase+"."+mysqlTable,
+			trace.WithSpanKind(trace.SpanKindClient),
+		)
 	defer dbSpan.End()
 
 	// Set additional span attributes
