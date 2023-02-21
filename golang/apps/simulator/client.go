@@ -15,9 +15,11 @@ import (
 )
 
 var (
-	httpserverListRequestInterval = os.Getenv("HTTP_SERVER_LIST_REQUEST_INTERVAL")
+	httpserverListRequestInterval = os.Getenv("HTTP_SERVER_REQUEST_INTERVAL")
 	httpserverEndpoint            = os.Getenv("HTTP_SERVER_ENDPOINT")
 	httpserverPort                = os.Getenv("HTTP_SERVER_PORT")
+
+	httpClient *http.Client
 )
 
 func simulateHttpServer() {
@@ -28,59 +30,65 @@ func simulateHttpServer() {
 		return
 	}
 
-	client := &http.Client{
+	httpClient = &http.Client{
 		Timeout: time.Duration(30 * time.Second),
 	}
 
 	for {
 
 		// Make request after each interval
-		time.Sleep(time.Duration(interval) * time.Second)
+		time.Sleep(time.Duration(interval) * time.Millisecond)
 
-		// Create request
-		req, err := http.NewRequest(
-			http.MethodPost,
-			httpserverEndpoint+"/list",
-			nil,
-		)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		// Create span
-		span := createHttpClientSpan()
-		defer (*span).End()
-
-		// Add headers
-		req.Header.Add("Content-Type", "application/json")
-
-		// Perform HTTP request
-		res, err := client.Do(req)
-		if err != nil {
-			fmt.Println(err.Error())
-			updateHttpClientSpan(span, http.StatusInternalServerError)
-			return
-		}
-		defer res.Body.Close()
-
-		// Read HTTP response
-		_, err = ioutil.ReadAll(res.Body)
-		if err != nil {
-			fmt.Println(err.Error())
-			updateHttpClientSpan(span, http.StatusInternalServerError)
-			return
-		}
-
-		// Check if call was successful
-		if res.StatusCode != http.StatusOK {
-			fmt.Println(err.Error())
-			updateHttpClientSpan(span, res.StatusCode)
-			return
-		}
-
-		updateHttpClientSpan(span, res.StatusCode)
+		// Make HTTP request
+		makeHttpRequest()
 	}
+}
+
+func makeHttpRequest() {
+
+	// Create request
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"http://"+httpserverEndpoint+":"+httpserverPort+"/list",
+		nil,
+	)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Create span
+	span := createHttpClientSpan()
+	defer (*span).End()
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/json")
+
+	// Perform HTTP request
+	res, err := httpClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+		updateHttpClientSpan(span, http.StatusInternalServerError)
+		return
+	}
+	defer res.Body.Close()
+
+	// Read HTTP response
+	_, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		updateHttpClientSpan(span, http.StatusInternalServerError)
+		return
+	}
+
+	// Check if call was successful
+	if res.StatusCode != http.StatusOK {
+		fmt.Println(err.Error())
+		updateHttpClientSpan(span, res.StatusCode)
+		return
+	}
+
+	updateHttpClientSpan(span, res.StatusCode)
 }
 
 func createHttpClientSpan() *trace.Span {
