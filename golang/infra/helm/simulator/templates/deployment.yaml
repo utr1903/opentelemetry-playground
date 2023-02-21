@@ -18,10 +18,6 @@ spec:
           image: "{{ .Values.dockerhubName }}/{{ .Values.imageName }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
-            - name: APP_NAME
-              value: {{ .Values.name }}
-            - name: APP_PORT
-              value: "{{ .Values.port }}"
             - name: HTTP_SERVER_REQUEST_INTERVAL
               value: "{{ .Values.httpserver.requestInterval }}"
             - name: HTTP_SERVER_ENDPOINT

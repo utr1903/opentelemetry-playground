@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -31,7 +31,8 @@ func simulateHttpServer() {
 	}
 
 	httpClient = &http.Client{
-		Timeout: time.Duration(30 * time.Second),
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   time.Duration(30 * time.Second),
 	}
 
 	for {
@@ -46,9 +47,16 @@ func simulateHttpServer() {
 
 func makeHttpRequest() {
 
-	// Create request
-	req, err := http.NewRequest(
-		http.MethodGet,
+	// Get context
+	ctx := context.Background()
+
+	// Create request propagation
+	carrier := propagation.HeaderCarrier(http.Header{})
+	otel.GetTextMapPropagator().Inject(context.Background(), carrier)
+
+	// Create HTTP request with trace context
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet,
 		"http://"+httpserverEndpoint+":"+httpserverPort+"/list",
 		nil,
 	)
@@ -57,10 +65,6 @@ func makeHttpRequest() {
 		return
 	}
 
-	// Create span
-	span := createHttpClientSpan()
-	defer (*span).End()
-
 	// Add headers
 	req.Header.Add("Content-Type", "application/json")
 
@@ -68,7 +72,6 @@ func makeHttpRequest() {
 	res, err := httpClient.Do(req)
 	if err != nil {
 		fmt.Println(err.Error())
-		updateHttpClientSpan(span, http.StatusInternalServerError)
 		return
 	}
 	defer res.Body.Close()
@@ -77,44 +80,12 @@ func makeHttpRequest() {
 	_, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err.Error())
-		updateHttpClientSpan(span, http.StatusInternalServerError)
 		return
 	}
 
 	// Check if call was successful
 	if res.StatusCode != http.StatusOK {
 		fmt.Println(err.Error())
-		updateHttpClientSpan(span, res.StatusCode)
 		return
 	}
-
-	updateHttpClientSpan(span, res.StatusCode)
-}
-
-func createHttpClientSpan() *trace.Span {
-	// Create span
-	_, span := otel.GetTracerProvider().Tracer(appName).Start(context.Background(), "/list")
-
-	// Set additional span attributes
-	span.SetAttributes(
-		attribute.String("http.method", "GET"),
-		attribute.String("http.target", "/list"),
-		attribute.String("net.host.name", httpserverEndpoint),
-		attribute.String("net.peer.port", httpserverPort),
-		attribute.String("http.scheme", "http"),
-		attribute.String("http.route", "/list"),
-	)
-
-	return &span
-}
-
-func updateHttpClientSpan(
-	span *trace.Span,
-	statusCode int,
-) {
-
-	// Set status code
-	(*span).SetAttributes(
-		attribute.Int("http.status_code", statusCode),
-	)
 }

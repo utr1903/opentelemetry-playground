@@ -6,10 +6,6 @@ import (
 	"os/signal"
 )
 
-var (
-	appName = os.Getenv("APP_NAME")
-)
-
 func main() {
 	// Get context
 	ctx := context.Background()
