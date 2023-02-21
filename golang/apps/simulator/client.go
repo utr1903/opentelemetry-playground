@@ -48,7 +48,7 @@ func makeHttpRequest() {
 
 	// Create request
 	req, err := http.NewRequest(
-		http.MethodPost,
+		http.MethodGet,
 		"http://"+httpserverEndpoint+":"+httpserverPort+"/list",
 		nil,
 	)
