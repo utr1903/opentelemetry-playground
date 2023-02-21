@@ -74,6 +74,15 @@ httpserver["namespace"]="golang"
 httpserver["replicas"]=1
 httpserver["port"]=8080
 
+# simulator
+declare -A simulator
+simulator["name"]="simulator"
+simulator["imageName"]="${repoName}:golang-${simulator[name]}-${platform}"
+simulator["namespace"]="golang"
+simulator["replicas"]=1
+simulator["port"]=8080
+simulator["httpInterval"]=1000
+
 ####################
 ### Build & Push ###
 ####################
@@ -85,6 +94,13 @@ if [[ $build == "true" ]]; then
     --tag "${DOCKERHUB_NAME}/${httpserver[imageName]}" \
     "../../apps/httpserver/."
   docker push "${DOCKERHUB_NAME}/${httpserver[imageName]}"
+
+  # simulator
+  docker build \
+    --platform "linux/${platform}" \
+    --tag "${DOCKERHUB_NAME}/${simulator[imageName]}" \
+    "../../apps/simulator/."
+  docker push "${DOCKERHUB_NAME}/${simulator[imageName]}"
 fi
 
 ###################
@@ -185,3 +201,23 @@ helm upgrade ${httpserver[name]} \
   --set otel.exporter="otlp" \
   --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/httpserver"
+
+# simulator
+helm upgrade ${simulator[name]} \
+  --install \
+  --wait \
+  --debug \
+  --create-namespace \
+  --namespace=${simulator[namespace]} \
+  --set dockerhubName=$DOCKERHUB_NAME \
+  --set imageName=${simulator[imageName]} \
+  --set imagePullPolicy="Always" \
+  --set name=${simulator[name]} \
+  --set replicas=${simulator[replicas]} \
+  --set port=${simulator[port]} \
+  --set httpserver.requestInterval=${simulator[httpInterval]} \
+  --set httpserver.endpoint="${httpserver[name]}.${httpserver[namespace]}.svc.cluster.local" \
+  --set httpserver.port="${httpserver[port]}" \
+  --set otel.exporter="otlp" \
+  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  "../helm/simulator"

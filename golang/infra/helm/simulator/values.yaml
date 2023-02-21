@@ -1,0 +1,45 @@
+### Variables
+
+# Name
+name: simulator
+
+# Port
+port: 8080
+
+# Replicas
+replicas: 1
+
+# Resources
+resources:
+  # Requests
+  requests:
+    # CPU
+    cpu: 20m
+    # Memory
+    memory: 50Mi
+  # Limits
+  limits:
+    # CPU
+    cpu: 800m
+    # Memory
+    memory: 1000Mi
+
+# OTel
+otel:
+  exporter: "stdout"
+
+# OTLP
+otlp:
+  # Endpoint  
+  endpoint: "https://otlp.nr-data.net:4317"
+  # Headers
+  headers: ""
+
+# Parameters for HTTP server
+httpserver:
+  # Interval between each request
+  requestInterval: "1"
+  # Endpoint of HTTP server
+  endpoint: "httpserver.golang.svc.cluster.local"
+  # Port of HTTP server
+  port: "8080"
