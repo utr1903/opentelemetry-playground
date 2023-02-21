@@ -145,6 +145,8 @@ helm upgrade ${otelcollector[name]} \
   --set config.receivers.jaeger=null \
   --set config.receivers.prometheus=null \
   --set config.receivers.zipkin=null \
+  --set config.processors.cumulativetodelta.include.match_type="strict" \
+  --set config.processors.cumulativetodelta.include.metrics[0]="http.server.duration" \
   --set config.exporters.logging=null \
   --set config.exporters.otlp.endpoint="otlp.eu01.nr-data.net:4317" \
   --set config.exporters.otlp.tls.insecure=false \
@@ -156,6 +158,7 @@ helm upgrade ${otelcollector[name]} \
   --set config.service.pipelines.metrics.receivers[0]="otlp" \
   --set config.service.pipelines.metrics.processors[0]="batch" \
   --set config.service.pipelines.metrics.processors[1]="memory_limiter" \
+  --set config.service.pipelines.metrics.processors[2]="cumulativetodelta" \
   --set config.service.pipelines.metrics.exporters[0]="otlp" \
   --set config.service.pipelines.logs=null \
   "open-telemetry/opentelemetry-collector"
