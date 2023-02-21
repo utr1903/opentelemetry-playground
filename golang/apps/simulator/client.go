@@ -11,7 +11,11 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 var (
@@ -20,6 +24,8 @@ var (
 	httpserverPort                = os.Getenv("HTTP_SERVER_PORT")
 
 	httpClient *http.Client
+
+	httpClientDuration instrument.Float64Histogram
 )
 
 func simulateHttpServer() {
@@ -35,6 +41,14 @@ func simulateHttpServer() {
 		Timeout:   time.Duration(30 * time.Second),
 	}
 
+	httpClientDuration, err = global.MeterProvider().
+		Meter(appName).
+		Float64Histogram("http.client.duration")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
 	for {
 
 		// Make request after each interval
@@ -46,6 +60,9 @@ func simulateHttpServer() {
 }
 
 func makeHttpRequest() {
+
+	// Start timer
+	requestStartTime := time.Now()
 
 	// Get context
 	ctx := context.Background()
@@ -88,4 +105,18 @@ func makeHttpRequest() {
 		fmt.Println(err.Error())
 		return
 	}
+
+	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
+
+	httpserverPortAsInt, _ := strconv.Atoi(httpserverPort)
+	attributes := attribute.NewSet(
+		semconv.HTTPSchemeHTTP,
+		semconv.HTTPFlavorKey.String(fmt.Sprintf("1.%d", req.ProtoMinor)),
+		semconv.HTTPMethod("GET"),
+		semconv.NetPeerName(httpserverEndpoint),
+		semconv.NetPeerPort(httpserverPortAsInt),
+		semconv.HTTPStatusCode(res.StatusCode),
+	)
+
+	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice()...)
 }

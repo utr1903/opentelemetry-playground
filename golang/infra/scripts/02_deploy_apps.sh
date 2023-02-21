@@ -163,6 +163,7 @@ helm upgrade ${otelcollector[name]} \
   --set config.receivers.zipkin=null \
   --set config.processors.cumulativetodelta.include.match_type="strict" \
   --set config.processors.cumulativetodelta.include.metrics[0]="http.server.duration" \
+  --set config.processors.cumulativetodelta.include.metrics[1]="http.client.duration" \
   --set config.exporters.logging=null \
   --set config.exporters.otlp.endpoint="otlp.eu01.nr-data.net:4317" \
   --set config.exporters.otlp.tls.insecure=false \
