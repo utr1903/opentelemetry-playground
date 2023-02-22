@@ -38,8 +38,17 @@ otlp:
 # Parameters for HTTP server
 httpserver:
   # Interval between each request
-  requestInterval: "1"
+  requestInterval: "2000"
   # Endpoint of HTTP server
   endpoint: "httpserver.golang.svc.cluster.local"
   # Port of HTTP server
   port: "8080"
+
+# Kafka
+kafka:
+  # Interval between each request
+  requestInterval: "1000"
+  # Address
+  address: "kafka-0.kafka-headless.golang.svc.cluster.local:9092"
+  # Topic
+  topic: "otel"

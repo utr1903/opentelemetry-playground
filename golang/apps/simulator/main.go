@@ -24,6 +24,7 @@ func main() {
 
 	// Simulate
 	go simulateHttpServer()
+	go simulateKafka()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

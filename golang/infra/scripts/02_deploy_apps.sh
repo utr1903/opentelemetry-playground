@@ -81,7 +81,8 @@ simulator["imageName"]="${repoName}:golang-${simulator[name]}-${platform}"
 simulator["namespace"]="golang"
 simulator["replicas"]=1
 simulator["port"]=8080
-simulator["httpInterval"]=1000
+simulator["httpInterval"]=2000
+simulator["kafkaInterval"]=1000
 
 ####################
 ### Build & Push ###
@@ -130,14 +131,14 @@ helm repo update
 #   --set server.remoteWrite[0].bearer_token=$NEWRELIC_LICENSE_KEY \
 #   "prometheus-community/prometheus"
 
-# # kafka
-# helm upgrade ${kafka[name]} \
-#   --install \
-#   --wait \
-#   --debug \
-#   --create-namespace \
-#   --namespace=${kafka[namespace]} \
-#   "bitnami/kafka"
+# kafka
+helm upgrade ${kafka[name]} \
+  --install \
+  --wait \
+  --debug \
+  --create-namespace \
+  --namespace=${kafka[namespace]} \
+  "bitnami/kafka"
 
 # mysql
 helm upgrade ${mysql[name]} \
@@ -219,6 +220,9 @@ helm upgrade ${simulator[name]} \
   --set httpserver.requestInterval=${simulator[httpInterval]} \
   --set httpserver.endpoint="${httpserver[name]}.${httpserver[namespace]}.svc.cluster.local" \
   --set httpserver.port="${httpserver[port]}" \
+  --set kafka.address="${kafka[name]}-0.${kafka[name]}-headless.${kafka[namespace]}.svc.cluster.local:9092" \
+  --set kafka.topic=${kafka[topic]} \
+  --set kafka.requestInterval=${simulator[kafkaInterval]} \
   --set otel.exporter="otlp" \
   --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/simulator"
