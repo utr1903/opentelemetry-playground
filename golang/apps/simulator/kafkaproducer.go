@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -18,6 +19,12 @@ var (
 )
 
 func simulateKafka() {
+
+	interval, err := strconv.ParseInt(kafkaproducerRequestInterval, 10, 64)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	// Create Kafka topic
 	createKafkaTopic()
