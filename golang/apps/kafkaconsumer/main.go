@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"os/signal"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -11,6 +13,7 @@ var (
 )
 
 func main() {
+
 	// Get context
 	ctx := context.Background()
 
@@ -22,12 +25,15 @@ func main() {
 	mp := newMetricProvider(ctx)
 	defer shutdownMetricProvider(ctx, mp)
 
-	// Simulate
-	go simulateHttpServer()
-	go simulateKafka()
+	// Connect to MySQL
+	db = createDatabaseConnection()
+	defer db.Close()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	if err := startConsumerGroup(ctx); err != nil {
+		panic(err.Error())
+	}
 
 	<-ctx.Done()
 }

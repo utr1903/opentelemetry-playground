@@ -1,0 +1,57 @@
+### Variables
+
+# Name
+name: kafkaconsumer
+
+# Replicas
+replicas: 1
+
+# Resources
+resources:
+  # Requests
+  requests:
+    # CPU
+    cpu: 20m
+    # Memory
+    memory: 50Mi
+  # Limits
+  limits:
+    # CPU
+    cpu: 800m
+    # Memory
+    memory: 1000Mi
+
+# OTel
+otel:
+  exporter: "stdout"
+
+# OTLP
+otlp:
+  # Endpoint  
+  endpoint: "https://otlp.nr-data.net:4317"
+  # Headers
+  headers: ""
+
+# Kafka
+kafka:
+  # Address
+  address: "kafka.golang.svc.cluster.local:9092"
+  # Topic
+  topic: "otel"
+  # Consumer group ID
+  groupId: "kafkaconsumer"
+
+# MySQL
+mysql:
+  # Server path
+  server: ""
+  # Username
+  username: "root"
+  # Password
+  password: ""
+  # Port
+  port: 3306
+  # Database
+  database: ""
+  # Table
+  table: ""
