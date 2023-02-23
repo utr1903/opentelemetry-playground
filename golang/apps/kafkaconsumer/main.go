@@ -10,7 +10,6 @@ import (
 
 var (
 	appName = os.Getenv("APP_NAME")
-	appPort = os.Getenv("APP_PORT")
 )
 
 func main() {
