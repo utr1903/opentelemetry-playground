@@ -35,11 +35,12 @@ func simulateKafka() {
 
 	go func() {
 
-		// Make request after each interval
-		time.Sleep(time.Duration(interval) * time.Millisecond)
-
 		// Keep publishing messages
 		for {
+
+			// Make request after each interval
+			time.Sleep(time.Duration(interval) * time.Millisecond)
+
 			// Create message
 			msg := sarama.ProducerMessage{
 				Topic: kafkaTopic,
