@@ -74,6 +74,13 @@ httpserver["namespace"]="golang"
 httpserver["replicas"]=1
 httpserver["port"]=8080
 
+# kafkaconsumer
+declare -A kafkaconsumer
+kafkaconsumer["name"]="kafkaconsumer"
+kafkaconsumer["imageName"]="${repoName}:golang-${kafkaconsumer[name]}-${platform}"
+kafkaconsumer["namespace"]="golang"
+kafkaconsumer["replicas"]=1
+
 # simulator
 declare -A simulator
 simulator["name"]="simulator"
@@ -95,6 +102,13 @@ if [[ $build == "true" ]]; then
     --tag "${DOCKERHUB_NAME}/${httpserver[imageName]}" \
     "../../apps/httpserver/."
   docker push "${DOCKERHUB_NAME}/${httpserver[imageName]}"
+
+  # kafkaconsumer
+  docker build \
+    --platform "linux/${platform}" \
+    --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
+    "../../apps/kafkaconsumer/."
+  docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
 
   # simulator
   docker build \
@@ -203,6 +217,31 @@ helm upgrade ${httpserver[name]} \
   --set otel.exporter="otlp" \
   --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/httpserver"
+
+# kafkaconsumer
+helm upgrade ${kafkaconsumer[name]} \
+  --install \
+  --wait \
+  --debug \
+  --create-namespace \
+  --namespace=${kafkaconsumer[namespace]} \
+  --set dockerhubName=$DOCKERHUB_NAME \
+  --set imageName=${kafkaconsumer[imageName]} \
+  --set imagePullPolicy="Always" \
+  --set name=${kafkaconsumer[name]} \
+  --set replicas=${kafkaconsumer[replicas]} \
+  --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
+  --set kafka.topic=${kafka[topic]} \
+  --set kafka.groupId=${kafkaconsumer[name]} \
+  --set mysql.server="${mysql[name]}.${mysql[namespace]}.svc.cluster.local" \
+  --set mysql.username=${mysql[username]} \
+  --set mysql.password=${mysql[password]} \
+  --set mysql.port=${mysql[port]} \
+  --set mysql.database=${mysql[database]} \
+  --set mysql.table=${mysql[table]} \
+  --set otel.exporter="otlp" \
+  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  "../helm/kafkaconsumer"
 
 # simulator
 helm upgrade ${simulator[name]} \
