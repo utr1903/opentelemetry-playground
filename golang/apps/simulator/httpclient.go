@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	httpserverListRequestInterval = os.Getenv("HTTP_SERVER_REQUEST_INTERVAL")
-	httpserverEndpoint            = os.Getenv("HTTP_SERVER_ENDPOINT")
-	httpserverPort                = os.Getenv("HTTP_SERVER_PORT")
+	httpserverRequestInterval = os.Getenv("HTTP_SERVER_REQUEST_INTERVAL")
+	httpserverEndpoint        = os.Getenv("HTTP_SERVER_ENDPOINT")
+	httpserverPort            = os.Getenv("HTTP_SERVER_PORT")
 
 	httpClient *http.Client
 
@@ -30,7 +30,7 @@ var (
 
 func simulateHttpServer() {
 
-	interval, err := strconv.ParseInt(httpserverListRequestInterval, 10, 64)
+	interval, err := strconv.ParseInt(httpserverRequestInterval, 10, 64)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
