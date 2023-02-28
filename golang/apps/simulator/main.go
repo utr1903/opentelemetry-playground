@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/httpclient"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/kafkaproducer"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel"
 )
 
@@ -23,7 +24,7 @@ func main() {
 
 	// Simulate
 	go httpclient.SimulateHttpServer()
-	go simulateKafka()
+	go kafkaproducer.SimulateKafka()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
