@@ -106,17 +106,17 @@ func storeIntoDb(
 		attribute.String("db.name", mysqlDatabase),
 		attribute.String("db.sql.table", mysqlTable),
 		attribute.String("db.statement", dbStatement),
-		attribute.String("db.operation", "SELECT"),
+		attribute.String("db.operation", dbOperation),
 	)
 
-	// Prepare a statement to insert a value into the database
-	stmt, err := db.Prepare("INSERT INTO mytable (name) VALUES (?)")
+	// Prepare a statement
+	stmt, err := db.Prepare("INSERT INTO " + mysqlTable + " (name) VALUES (?)")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer stmt.Close()
 
-	// Execute the statement with a value of 42
+	// Execute the statement
 	_, err = stmt.Exec(name)
 	if err != nil {
 		panic(err.Error())
