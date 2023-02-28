@@ -49,17 +49,32 @@ func simulateHttpServer() {
 		return
 	}
 
-	for {
+	// LIST simulator
+	go func() {
+		for {
 
-		// Make request after each interval
-		time.Sleep(time.Duration(interval) * time.Millisecond)
+			// Make request after each interval
+			time.Sleep(time.Duration(interval) * time.Millisecond)
 
-		// Make HTTP request
-		makeHttpRequest()
-	}
+			// List
+			httpList()
+		}
+	}()
+
+	// DELETE simulator
+	go func() {
+		for {
+
+			// Make request after each interval * 4
+			time.Sleep(4 * time.Duration(interval) * time.Millisecond)
+
+			// Delete
+			httpDelete()
+		}
+	}()
 }
 
-func makeHttpRequest() {
+func httpList() {
 
 	// Start timer
 	requestStartTime := time.Now()
@@ -69,7 +84,7 @@ func makeHttpRequest() {
 
 	// Create request propagation
 	carrier := propagation.HeaderCarrier(http.Header{})
-	otel.GetTextMapPropagator().Inject(context.Background(), carrier)
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
 
 	// Create HTTP request with trace context
 	req, err := http.NewRequestWithContext(
@@ -113,6 +128,68 @@ func makeHttpRequest() {
 		semconv.HTTPSchemeHTTP,
 		semconv.HTTPFlavorKey.String(fmt.Sprintf("1.%d", req.ProtoMinor)),
 		semconv.HTTPMethod("GET"),
+		semconv.NetPeerName(httpserverEndpoint),
+		semconv.NetPeerPort(httpserverPortAsInt),
+		semconv.HTTPStatusCode(res.StatusCode),
+	)
+
+	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice()...)
+}
+
+func httpDelete() {
+
+	// Start timer
+	requestStartTime := time.Now()
+
+	// Get context
+	ctx := context.Background()
+
+	// Create request propagation
+	carrier := propagation.HeaderCarrier(http.Header{})
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+
+	// Create HTTP request with trace context
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete,
+		"http://"+httpserverEndpoint+":"+httpserverPort+"/delete",
+		nil,
+	)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/json")
+
+	// Perform HTTP request
+	res, err := httpClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer res.Body.Close()
+
+	// Read HTTP response
+	_, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Check if call was successful
+	if res.StatusCode != http.StatusOK {
+		fmt.Println(err.Error())
+		return
+	}
+
+	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
+
+	httpserverPortAsInt, _ := strconv.Atoi(httpserverPort)
+	attributes := attribute.NewSet(
+		semconv.HTTPSchemeHTTP,
+		semconv.HTTPFlavorKey.String(fmt.Sprintf("1.%d", req.ProtoMinor)),
+		semconv.HTTPMethod("DELETE"),
 		semconv.NetPeerName(httpserverEndpoint),
 		semconv.NetPeerPort(httpserverPortAsInt),
 		semconv.HTTPStatusCode(res.StatusCode),
