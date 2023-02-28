@@ -129,9 +129,9 @@ resource "newrelic_one_dashboard" "apps" {
   page {
     name = "HTTP Server (Metrics)"
 
-    # Overall HTTP server performance
+    # Overall server performance
     widget_markdown {
-      title  = "Overall HTTP server performance"
+      title  = "Overall server performance"
       column = 1
       row    = 1
       width  = 3
@@ -154,9 +154,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Average web throughput (rpm)
+    # Web throughput (rpm)
     widget_line {
-      title  = "Average web throughput (rpm)"
+      title  = "Web throughput (rpm)"
       column = 1
       row    = 4
       width  = 6
@@ -168,9 +168,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Average error rate (%)
+    # Error rate (%)
     widget_line {
-      title  = "Average error rate (%)"
+      title  = "Error rate (%)"
       column = 7
       row    = 4
       width  = 6
@@ -186,9 +186,9 @@ resource "newrelic_one_dashboard" "apps" {
   page {
     name = "HTTP Server (Spans)"
 
-    # Overall HTTP server performance
+    # Overall server performance
     widget_markdown {
-      title  = "Overall HTTP server performance"
+      title  = "Overall server performance"
       column = 1
       row    = 1
       width  = 3
@@ -236,6 +236,101 @@ resource "newrelic_one_dashboard" "apps" {
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
         query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'server' TIMESERIES"
+      }
+    }
+
+    # Database performace
+    widget_markdown {
+      title  = "Database performace"
+      column = 1
+      row    = 7
+      width  = 3
+      height = 3
+
+      text = "## Database"
+    }
+
+    # Average database time (ms)
+    widget_line {
+      title  = "Average database time (ms)"
+      column = 4
+      row    = 7
+      width  = 9
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT average(duration.ms) AS `DB time` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+      }
+    }
+
+    # Database throughput (rpm)
+    widget_line {
+      title  = "Database throughput (rpm)"
+      column = 1
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+      }
+    }
+
+    # Database error rate (%)
+    widget_line {
+      title  = "Database error rate (%)"
+      column = 7
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+      }
+    }
+
+    # Max database operation latency (ms)
+    widget_bar {
+      title  = "Max database operation latency (ms)"
+      column = 1
+      row    = 13
+      width  = 4
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT max(duration.ms) WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
+      }
+    }
+
+    # Database operation throughput (rpm)
+    widget_bar {
+      title  = "Max database operation throughput (rpm)"
+      column = 5
+      row    = 13
+      width  = 4
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT rate(count(*), 1 minute) WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
+      }
+    }
+
+    # Database operation error rate (%)
+    widget_bar {
+      title  = "Average database error rate (%)"
+      column = 9
+      row    = 13
+      width  = 4
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
       }
     }
   }
