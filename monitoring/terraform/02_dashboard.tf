@@ -6,15 +6,15 @@
 resource "newrelic_one_dashboard" "apps" {
   name = "OTel Playground"
 
-  ###########################
-  ### SIMULATOR (METRICS) ###
-  ###########################
+  #################
+  ### SIMULATOR ###
+  #################
   page {
     name = "Simulator (Metrics)"
 
-    # Page description
+    # Simulator -> HTTP server
     widget_markdown {
-      title  = "Page description"
+      title  = "Simulator -> HTTP server"
       column = 1
       row    = 1
       width  = 3
@@ -66,15 +66,12 @@ resource "newrelic_one_dashboard" "apps" {
     }
   }
 
-  #########################
-  ### SIMULATOR (SPANS) ###
-  #########################
   page {
     name = "Simulator (Spans)"
 
-    # Page description
+    # Simulator -> HTTP server
     widget_markdown {
-      title  = "Page description"
+      title  = "Simulator -> HTTP server"
       column = 1
       row    = 1
       width  = 3
@@ -126,15 +123,15 @@ resource "newrelic_one_dashboard" "apps" {
     }
   }
 
-  #############################
-  ### HTTP SERVER (Metrics) ###
-  #############################
+  ###################
+  ### HTTP SERVER ###
+  ###################
   page {
     name = "HTTP Server (Metrics)"
 
-    # Page description
+    # Overall HTTP server performance
     widget_markdown {
-      title  = "Page description"
+      title  = "Overall HTTP server performance"
       column = 1
       row    = 1
       width  = 3
@@ -186,15 +183,12 @@ resource "newrelic_one_dashboard" "apps" {
     }
   }
 
-  ###########################
-  ### HTTP SERVER (Spans) ###
-  ###########################
   page {
     name = "HTTP Server (Spans)"
 
-    # Page description
+    # Overall HTTP server performance
     widget_markdown {
-      title  = "Page description"
+      title  = "Overall HTTP server performance"
       column = 1
       row    = 1
       width  = 3
