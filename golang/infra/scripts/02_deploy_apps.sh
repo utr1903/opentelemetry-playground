@@ -68,23 +68,23 @@ otelcollector["prometheusPort"]=9464
 
 # httpserver
 declare -A httpserver
-httpserver["name"]="httpserver"
-httpserver["imageName"]="${repoName}:golang-${httpserver[name]}-${platform}"
+httpserver["name"]="httpserver-golang"
+httpserver["imageName"]="${repoName}:${httpserver[name]}-${platform}"
 httpserver["namespace"]="golang"
 httpserver["replicas"]=1
 httpserver["port"]=8080
 
 # kafkaconsumer
 declare -A kafkaconsumer
-kafkaconsumer["name"]="kafkaconsumer"
-kafkaconsumer["imageName"]="${repoName}:golang-${kafkaconsumer[name]}-${platform}"
+kafkaconsumer["name"]="kafkaconsumer-golang"
+kafkaconsumer["imageName"]="${repoName}:${kafkaconsumer[name]}-${platform}"
 kafkaconsumer["namespace"]="golang"
 kafkaconsumer["replicas"]=1
 
 # simulator
 declare -A simulator
-simulator["name"]="simulator"
-simulator["imageName"]="${repoName}:golang-${simulator[name]}-${platform}"
+simulator["name"]="simulator-golang"
+simulator["imageName"]="${repoName}:${simulator[name]}-${platform}"
 simulator["namespace"]="golang"
 simulator["replicas"]=1
 simulator["port"]=8080
