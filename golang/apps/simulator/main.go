@@ -5,11 +5,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/httpclient"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel"
-)
-
-var (
-	appName = os.Getenv("APP_NAME")
 )
 
 func main() {
@@ -25,7 +22,7 @@ func main() {
 	defer otel.ShutdownMetricProvider(ctx, mp)
 
 	// Simulate
-	go simulateHttpServer()
+	go httpclient.SimulateHttpServer()
 	go simulateKafka()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
