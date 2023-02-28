@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"os/signal"
+
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel"
 )
 
 var (
@@ -15,12 +17,12 @@ func main() {
 	ctx := context.Background()
 
 	// Create tracer provider
-	tp := newTraceProvider(ctx)
-	defer shutdownTraceProvider(ctx, tp)
+	tp := otel.NewTraceProvider(ctx)
+	defer otel.ShutdownTraceProvider(ctx, tp)
 
 	// Create metric provider
-	mp := newMetricProvider(ctx)
-	defer shutdownMetricProvider(ctx, mp)
+	mp := otel.NewMetricProvider(ctx)
+	defer otel.ShutdownMetricProvider(ctx, mp)
 
 	// Simulate
 	go simulateHttpServer()
