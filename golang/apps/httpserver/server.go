@@ -15,6 +15,10 @@ func listHandler(
 	r *http.Request,
 ) {
 
+	if r.Method != http.MethodGet {
+		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"))
+	}
+
 	// Build db query
 	dbOperation := "SELECT"
 	dbStatement := dbOperation + " name FROM " + mysqlTable
@@ -43,7 +47,7 @@ func listHandler(
 		attribute.String("db.name", mysqlDatabase),
 		attribute.String("db.sql.table", mysqlTable),
 		attribute.String("db.statement", dbStatement),
-		attribute.String("db.operation", "SELECT"),
+		attribute.String("db.operation", dbOperation),
 	)
 
 	// Perform a query
@@ -73,6 +77,57 @@ func listHandler(
 	}
 
 	createHttpResponse(&w, http.StatusOK, resBody)
+}
+
+func deleteHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	if r.Method != http.MethodDelete {
+		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"))
+	}
+
+	// Build query
+	dbOperation := "DELETE"
+	dbStatement := dbOperation + " FROM " + mysqlTable
+
+	// Get current parentSpan
+	parentSpan := trace.SpanFromContext(r.Context())
+	defer parentSpan.End()
+
+	// Create db span
+	_, dbSpan := parentSpan.TracerProvider().
+		Tracer(appName).
+		Start(
+			r.Context(),
+			dbOperation+" "+mysqlDatabase+"."+mysqlTable,
+			trace.WithSpanKind(trace.SpanKindClient),
+		)
+	defer dbSpan.End()
+
+	// Set additional span attributes
+	dbSpan.SetAttributes(
+		attribute.String("db.system", "mysql"),
+		attribute.String("db.user", mysqlUsername),
+		attribute.String("net.peer.name", mysqlServer),
+		attribute.String("net.peer.port", mysqlPort),
+		attribute.String("net.transport", "IP.TCP"),
+		attribute.String("db.name", mysqlDatabase),
+		attribute.String("db.sql.table", mysqlTable),
+		attribute.String("db.statement", dbStatement),
+		attribute.String("db.operation", dbOperation),
+	)
+
+	// Perform query
+	_, err := db.Exec(dbStatement)
+	if err != nil {
+		fmt.Println(err.Error())
+		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()))
+		return
+	}
+
+	createHttpResponse(&w, http.StatusOK, []byte("Success"))
 }
 
 func createHttpResponse(

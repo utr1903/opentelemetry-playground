@@ -32,5 +32,6 @@ func main() {
 
 	// Serve
 	http.Handle("/list", otelhttp.NewHandler(http.HandlerFunc(listHandler), "list"))
+	http.Handle("/delete", otelhttp.NewHandler(http.HandlerFunc(deleteHandler), "delete"))
 	http.ListenAndServe(":"+appPort, nil)
 }
