@@ -1,4 +1,4 @@
-package main
+package kafkaproducer
 
 import (
 	"context"
@@ -18,7 +18,7 @@ var (
 	kafkaTopic           = os.Getenv("KAFKA_TOPIC")
 )
 
-func simulateKafka() {
+func SimulateKafka() {
 
 	interval, err := strconv.ParseInt(kafkaRequestInterval, 10, 64)
 	if err != nil {

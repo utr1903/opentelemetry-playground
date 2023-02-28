@@ -4,10 +4,10 @@ import (
 	"context"
 	"os"
 	"os/signal"
-)
 
-var (
-	appName = os.Getenv("APP_NAME")
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/httpclient"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/kafkaproducer"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel"
 )
 
 func main() {
@@ -15,16 +15,16 @@ func main() {
 	ctx := context.Background()
 
 	// Create tracer provider
-	tp := newTraceProvider(ctx)
-	defer shutdownTraceProvider(ctx, tp)
+	tp := otel.NewTraceProvider(ctx)
+	defer otel.ShutdownTraceProvider(ctx, tp)
 
 	// Create metric provider
-	mp := newMetricProvider(ctx)
-	defer shutdownMetricProvider(ctx, mp)
+	mp := otel.NewMetricProvider(ctx)
+	defer otel.ShutdownMetricProvider(ctx, mp)
 
 	// Simulate
-	go simulateHttpServer()
-	go simulateKafka()
+	go httpclient.SimulateHttpServer()
+	go kafkaproducer.SimulateKafka()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

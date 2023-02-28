@@ -1,4 +1,4 @@
-package main
+package otel
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 
 var otelExporterType = os.Getenv("OTEL_EXPORTER_TYPE")
 
-func newTraceProvider(
+func NewTraceProvider(
 	ctx context.Context,
 ) *sdktrace.TracerProvider {
 
@@ -72,7 +72,7 @@ func newTraceProvider(
 	return tp
 }
 
-func shutdownTraceProvider(
+func ShutdownTraceProvider(
 	ctx context.Context,
 	tp *sdktrace.TracerProvider,
 ) {
@@ -84,7 +84,7 @@ func shutdownTraceProvider(
 	}
 }
 
-func newMetricProvider(
+func NewMetricProvider(
 	ctx context.Context,
 ) *sdkmetric.MeterProvider {
 	var exp sdkmetric.Exporter
@@ -101,12 +101,13 @@ func newMetricProvider(
 		panic(err)
 	}
 
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
 	global.SetMeterProvider(mp)
 	return mp
 }
 
-func shutdownMetricProvider(
+func ShutdownMetricProvider(
 	ctx context.Context,
 	mp *sdkmetric.MeterProvider,
 ) {

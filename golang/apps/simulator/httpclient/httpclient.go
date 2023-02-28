@@ -1,4 +1,4 @@
-package main
+package httpclient
 
 import (
 	"context"
@@ -19,6 +19,8 @@ import (
 )
 
 var (
+	appName = os.Getenv("APP_NAME")
+
 	httpserverRequestInterval = os.Getenv("HTTP_SERVER_REQUEST_INTERVAL")
 	httpserverEndpoint        = os.Getenv("HTTP_SERVER_ENDPOINT")
 	httpserverPort            = os.Getenv("HTTP_SERVER_PORT")
@@ -28,7 +30,7 @@ var (
 	httpClientDuration instrument.Float64Histogram
 )
 
-func simulateHttpServer() {
+func SimulateHttpServer() {
 
 	interval, err := strconv.ParseInt(httpserverRequestInterval, 10, 64)
 	if err != nil {
