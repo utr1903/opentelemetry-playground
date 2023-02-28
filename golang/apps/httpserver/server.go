@@ -43,7 +43,7 @@ func listHandler(
 		attribute.String("db.name", mysqlDatabase),
 		attribute.String("db.sql.table", mysqlTable),
 		attribute.String("db.statement", dbStatement),
-		attribute.String("db.operation", "SELECT"),
+		attribute.String("db.operation", dbOperation),
 	)
 
 	// Perform a query
