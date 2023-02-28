@@ -6,6 +6,66 @@
 resource "newrelic_one_dashboard" "apps" {
   name = "OTel Playground"
 
+  #################
+  ### SIMULATOR ###
+  #################
+  page {
+    name = "Simulator"
+
+    # Page description
+    widget_markdown {
+      title  = "Page description"
+      column = 1
+      row    = 1
+      width  = 3
+      height = 3
+
+      text = "## Simulator"
+    }
+
+    # Latency of calls to HTTP server (ms)
+    widget_line {
+      title  = "Latency of calls to HTTP server (ms)"
+      column = 4
+      row    = 1
+      width  = 9
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.client.duration) AS `Response time` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+      }
+    }
+
+    # Throughput of calls to HTTP server (rpm)
+    widget_line {
+      title  = "Throughput of calls to HTTP server (rpm)"
+      column = 1
+      row    = 4
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) AS `Throughput` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+      }
+    }
+
+    # Error rate of calls to HTTP server (%)
+    widget_line {
+      title  = "Error rate of calls to HTTP server (%)"
+      column = 7
+      row    = 4
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT filter(count(http.client.duration), WHERE numeric(http.status_code) >= 500)/count(http.client.duration)*100 AS `Error rate` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+      }
+    }
+  }
+
   ###################
   ### HTTP SERVER ###
   ###################
