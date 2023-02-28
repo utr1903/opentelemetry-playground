@@ -75,6 +75,53 @@ func listHandler(
 	createHttpResponse(&w, http.StatusOK, resBody)
 }
 
+func deleteHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	// Build query
+	dbOperation := "DELETE"
+	dbStatement := dbOperation + " FROM " + mysqlTable
+
+	// Get current parentSpan
+	parentSpan := trace.SpanFromContext(r.Context())
+	defer parentSpan.End()
+
+	// Create db span
+	_, dbSpan := parentSpan.TracerProvider().
+		Tracer(appName).
+		Start(
+			r.Context(),
+			dbOperation+" "+mysqlDatabase+"."+mysqlTable,
+			trace.WithSpanKind(trace.SpanKindClient),
+		)
+	defer dbSpan.End()
+
+	// Set additional span attributes
+	dbSpan.SetAttributes(
+		attribute.String("db.system", "mysql"),
+		attribute.String("db.user", mysqlUsername),
+		attribute.String("net.peer.name", mysqlServer),
+		attribute.String("net.peer.port", mysqlPort),
+		attribute.String("net.transport", "IP.TCP"),
+		attribute.String("db.name", mysqlDatabase),
+		attribute.String("db.sql.table", mysqlTable),
+		attribute.String("db.statement", dbStatement),
+		attribute.String("db.operation", dbOperation),
+	)
+
+	// Perform query
+	_, err := db.Exec(dbStatement)
+	if err != nil {
+		fmt.Println(err.Error())
+		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()))
+		return
+	}
+
+	createHttpResponse(&w, http.StatusOK, []byte("Success"))
+}
+
 func createHttpResponse(
 	w *http.ResponseWriter,
 	statusCode uint,
