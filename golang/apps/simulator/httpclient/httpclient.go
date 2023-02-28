@@ -78,9 +78,6 @@ func SimulateHttpServer() {
 
 func httpList() {
 
-	// Start timer
-	requestStartTime := time.Now()
-
 	// Get context
 	ctx := context.Background()
 
@@ -102,10 +99,14 @@ func httpList() {
 	// Add headers
 	req.Header.Add("Content-Type", "application/json")
 
+	// Start timer
+	requestStartTime := time.Now()
+
 	// Perform HTTP request
 	res, err := httpClient.Do(req)
 	if err != nil {
 		fmt.Println(err.Error())
+		recordClientDuration(ctx, requestStartTime, res.StatusCode)
 		return
 	}
 	defer res.Body.Close()
@@ -114,34 +115,12 @@ func httpList() {
 	_, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err.Error())
-		return
 	}
 
-	// Check if call was successful
-	if res.StatusCode != http.StatusOK {
-		fmt.Println(err.Error())
-		return
-	}
-
-	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
-
-	httpserverPortAsInt, _ := strconv.Atoi(httpserverPort)
-	attributes := attribute.NewSet(
-		semconv.HTTPSchemeHTTP,
-		semconv.HTTPFlavorKey.String(fmt.Sprintf("1.%d", req.ProtoMinor)),
-		semconv.HTTPMethod("GET"),
-		semconv.NetPeerName(httpserverEndpoint),
-		semconv.NetPeerPort(httpserverPortAsInt),
-		semconv.HTTPStatusCode(res.StatusCode),
-	)
-
-	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice()...)
+	recordClientDuration(ctx, requestStartTime, res.StatusCode)
 }
 
 func httpDelete() {
-
-	// Start timer
-	requestStartTime := time.Now()
 
 	// Get context
 	ctx := context.Background()
@@ -164,10 +143,14 @@ func httpDelete() {
 	// Add headers
 	req.Header.Add("Content-Type", "application/json")
 
+	// Start timer
+	requestStartTime := time.Now()
+
 	// Perform HTTP request
 	res, err := httpClient.Do(req)
 	if err != nil {
 		fmt.Println(err.Error())
+		recordClientDuration(ctx, requestStartTime, res.StatusCode)
 		return
 	}
 	defer res.Body.Close()
@@ -176,25 +159,25 @@ func httpDelete() {
 	_, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err.Error())
-		return
 	}
 
-	// Check if call was successful
-	if res.StatusCode != http.StatusOK {
-		fmt.Println(err.Error())
-		return
-	}
+	recordClientDuration(ctx, requestStartTime, res.StatusCode)
+}
 
-	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
-
+func recordClientDuration(
+	ctx context.Context,
+	startTime time.Time,
+	statusCode int,
+) {
+	elapsedTime := float64(time.Since(startTime)) / float64(time.Millisecond)
 	httpserverPortAsInt, _ := strconv.Atoi(httpserverPort)
 	attributes := attribute.NewSet(
 		semconv.HTTPSchemeHTTP,
-		semconv.HTTPFlavorKey.String(fmt.Sprintf("1.%d", req.ProtoMinor)),
+		semconv.HTTPFlavorKey.String("1.1"),
 		semconv.HTTPMethod("DELETE"),
 		semconv.NetPeerName(httpserverEndpoint),
 		semconv.NetPeerPort(httpserverPortAsInt),
-		semconv.HTTPStatusCode(res.StatusCode),
+		semconv.HTTPStatusCode(statusCode),
 	)
 
 	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice()...)
