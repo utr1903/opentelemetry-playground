@@ -15,6 +15,10 @@ func listHandler(
 	r *http.Request,
 ) {
 
+	if r.Method != http.MethodGet {
+		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"))
+	}
+
 	// Build db query
 	dbOperation := "SELECT"
 	dbStatement := dbOperation + " name FROM " + mysqlTable
@@ -79,6 +83,10 @@ func deleteHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+
+	if r.Method != http.MethodDelete {
+		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"))
+	}
 
 	// Build query
 	dbOperation := "DELETE"
