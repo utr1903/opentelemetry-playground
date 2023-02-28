@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	kafkaproducerRequestInterval = os.Getenv("KAFKA_PRODUCER_REQUEST_INTERVAL")
-	kafkaBrokerAddress           = os.Getenv("KAFKA_BROKER_ADDRESS")
-	kafkaTopic                   = os.Getenv("KAFKA_TOPIC")
+	kafkaRequestInterval = os.Getenv("KAFKA_REQUEST_INTERVAL")
+	kafkaBrokerAddress   = os.Getenv("KAFKA_BROKER_ADDRESS")
+	kafkaTopic           = os.Getenv("KAFKA_TOPIC")
 )
 
 func simulateKafka() {
 
-	interval, err := strconv.ParseInt(kafkaproducerRequestInterval, 10, 64)
+	interval, err := strconv.ParseInt(kafkaRequestInterval, 10, 64)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -31,7 +31,7 @@ func simulateKafka() {
 
 	// Create producer
 	producer := createKafkaProducer()
-	defer producer.Close()
+	// defer producer.Close()
 
 	go func() {
 
