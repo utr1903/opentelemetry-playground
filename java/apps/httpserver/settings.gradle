@@ -1,0 +1,8 @@
+pluginManagement {
+  plugins {
+    id 'org.springframework.boot' version '3.0.4'
+    id 'de.undercouch.download' version '5.4.0'
+  }
+}
+
+rootProject.name = "httpserver-java"
