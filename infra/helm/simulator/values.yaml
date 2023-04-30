@@ -40,7 +40,7 @@ httpserver:
   # Interval between each request
   requestInterval: "2000"
   # Endpoint of HTTP server
-  endpoint: "httpserver.golang.svc.cluster.local"
+  endpoint: "httpserver.otel.svc.cluster.local"
   # Port of HTTP server
   port: "8080"
 
@@ -49,6 +49,6 @@ kafka:
   # Interval between each request
   requestInterval: "1000"
   # Address
-  address: "kafka-0.kafka-headless.golang.svc.cluster.local:9092"
+  address: "kafka-0.kafka-headless.otel.svc.cluster.local:9092"
   # Topic
   topic: "otel"
