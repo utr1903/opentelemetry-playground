@@ -10,6 +10,10 @@ while (( "$#" )); do
       platform="$2"
       shift
       ;;
+    --language)
+      language="$2"
+      shift
+      ;;
     --build)
       build="true"
       shift
@@ -31,6 +35,12 @@ else
   fi
 fi
 
+# Programming language
+if [[ $language != "golang" && $language != "java" ]]; then
+  echo "Currently supported languages are 'golang' or 'java'."
+  exit 1
+fi
+
 #####################
 ### Set variables ###
 #####################
@@ -38,21 +48,16 @@ fi
 repoName="opentelemetry-playground"
 clusterName="opentelemetry-playground"
 
-# prometheus
-declare -A prometheus
-prometheus["name"]="prometheus"
-prometheus["namespace"]="golang"
-
 # kafka
 declare -A kafka
 kafka["name"]="kafka"
-kafka["namespace"]="golang"
+kafka["namespace"]="otel"
 kafka["topic"]="otel"
 
 # mysql
 declare -A mysql
 mysql["name"]="mysql"
-mysql["namespace"]="golang"
+mysql["namespace"]="otel"
 mysql["username"]="root"
 mysql["password"]="verysecretpassword"
 mysql["port"]=3306
@@ -62,30 +67,30 @@ mysql["table"]="names"
 # otelcollector
 declare -A otelcollector
 otelcollector["name"]="otel-collector"
-otelcollector["namespace"]="golang"
+otelcollector["namespace"]="otel"
 otelcollector["mode"]="deployment"
 otelcollector["prometheusPort"]=9464
 
 # httpserver
 declare -A httpserver
-httpserver["name"]="httpserver-golang"
+httpserver["name"]="httpserver-${language}"
 httpserver["imageName"]="${repoName}:${httpserver[name]}-${platform}"
-httpserver["namespace"]="golang"
+httpserver["namespace"]="otel"
 httpserver["replicas"]=1
 httpserver["port"]=8080
 
 # kafkaconsumer
 declare -A kafkaconsumer
-kafkaconsumer["name"]="kafkaconsumer-golang"
+kafkaconsumer["name"]="kafkaconsumer-${language}"
 kafkaconsumer["imageName"]="${repoName}:${kafkaconsumer[name]}-${platform}"
-kafkaconsumer["namespace"]="golang"
+kafkaconsumer["namespace"]="otel"
 kafkaconsumer["replicas"]=1
 
 # simulator
 declare -A simulator
-simulator["name"]="simulator-golang"
+simulator["name"]="simulator-${language}"
 simulator["imageName"]="${repoName}:${simulator[name]}-${platform}"
-simulator["namespace"]="golang"
+simulator["namespace"]="otel"
 simulator["replicas"]=1
 simulator["port"]=8080
 simulator["httpInterval"]=2000
@@ -100,21 +105,21 @@ if [[ $build == "true" ]]; then
   docker build \
     --platform "linux/${platform}" \
     --tag "${DOCKERHUB_NAME}/${httpserver[imageName]}" \
-    "../../apps/httpserver/."
+    "../../${language}/apps/httpserver/."
   docker push "${DOCKERHUB_NAME}/${httpserver[imageName]}"
 
   # kafkaconsumer
   docker build \
     --platform "linux/${platform}" \
     --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
-    "../../apps/kafkaconsumer/."
+    "../../${language}/apps/kafkaconsumer/."
   docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
 
   # simulator
   docker build \
     --platform "linux/${platform}" \
     --tag "${DOCKERHUB_NAME}/${simulator[imageName]}" \
-    "../../apps/simulator/."
+    "../../${language}/apps/simulator/."
   docker push "${DOCKERHUB_NAME}/${simulator[imageName]}"
 fi
 
@@ -124,26 +129,8 @@ fi
 
 # Add helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
-
-# # prometheus
-# helm upgrade ${prometheus[name]} \
-#   --install \
-#   --wait \
-#   --debug \
-#   --create-namespace \
-#   --namespace ${prometheus[namespace]} \
-#   --set alertmanager.enabled=false \
-#   --set prometheus-pushgateway.enabled=false \
-#   --set kubeStateMetrics.enabled=true \
-#   --set nodeExporter.enabled=true \
-#   --set nodeExporter.tolerations[0].effect="NoSchedule" \
-#   --set nodeExporter.tolerations[0].operator="Exists" \
-#   --set server.remoteWrite[0].url="https://metric-api.eu.newrelic.com/prometheus/v1/write?prometheus_server=${clusterName}" \
-#   --set server.remoteWrite[0].bearer_token=$NEWRELIC_LICENSE_KEY \
-#   "prometheus-community/prometheus"
 
 # kafka
 helm upgrade ${kafka[name]} \

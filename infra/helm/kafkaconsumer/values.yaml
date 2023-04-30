@@ -35,7 +35,7 @@ otlp:
 # Kafka
 kafka:
   # Address
-  address: "kafka.golang.svc.cluster.local:9092"
+  address: "kafka.otel.svc.cluster.local:9092"
   # Topic
   topic: "otel"
   # Consumer group ID
