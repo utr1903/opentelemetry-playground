@@ -22,6 +22,12 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-web'
   implementation 'org.springframework.boot:spring-boot-starter-log4j2'
 
+  compileOnly 'org.projectlombok:lombok:1.18.26'
+	annotationProcessor 'org.projectlombok:lombok:1.18.26'
+  implementation 'mysql:mysql-connector-java:8.0.15'
+  implementation 'org.hibernate:hibernate-entitymanager:5.3.7.Final'
+  implementation 'org.springframework.data:spring-data-jpa:3.0.5'
+
   // OpenTelemetry core
   implementation platform('io.opentelemetry:opentelemetry-bom:1.24.0')
   implementation platform('io.opentelemetry:opentelemetry-bom-alpha:1.24.0-alpha')
