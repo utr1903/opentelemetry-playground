@@ -19,25 +19,25 @@ public class DeleteService {
   private NameRepository repository;
 
   public ResponseEntity<ResponseBase<Boolean>> run(String error) {
-    logger.info("Deleting pipeline datas...");
+    logger.info("Deleting names...");
 
     try {
       // Delete data
-      deletePipelineDatas();
+      deleteNames();
 
       // Create success response
-      String message = "Pipeline datas are deleted successfully.";
+      String message = "Names are deleted successfully.";
       return createResponse(message, true, HttpStatus.OK);
     } catch (Exception e) {
 
       // Create fail response
-      String message = "Pipeline datas are not deleted successfully.";
+      String message = "Names datas are not deleted successfully.";
       logger.error(message);
       return createResponse(message, false, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  private void deletePipelineDatas() {
+  private void deleteNames() {
     repository.deleteAll();
   }
 

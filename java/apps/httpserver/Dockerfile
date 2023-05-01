@@ -1,10 +1,13 @@
-FROM gradle:7.6.1-jdk17 AS build
-COPY --chown=gradle:gradle . /home/gradle/src
-WORKDIR /home/gradle/src
-RUN gradle clean build --no-daemon
+# Build
+FROM maven:eclipse-temurin AS build
+COPY src /home/app/src
+COPY pom.xml /home/app
+RUN mvn -f /home/app/pom.xml clean package
 
+# Package stage
 FROM amazoncorretto:17
+COPY --from=build /home/app/target/httpserver-0.0.1-SNAPSHOT.jar /usr/local/lib/app.jar
+
 EXPOSE 8080
-RUN mkdir /app
-COPY --from=build /home/gradle/src/build/libs/httpserver-java.jar /app/httpserver-java.jar
-ENTRYPOINT ["java","-jar","/app/httpserver-java.jar"]
+
+ENTRYPOINT ["java","-jar","/usr/local/lib/app.jar"]
