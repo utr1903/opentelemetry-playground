@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.newrelic.otelplayground.httpserver.dtos.ResponseBase;
-import com.newrelic.otelplayground.httpserver.entity.Name;
+import com.newrelic.otelplayground.httpserver.entities.Name;
 import com.newrelic.otelplayground.httpserver.repositories.NameRepository;
 
 @Service
@@ -22,36 +22,36 @@ public class ListService {
   private NameRepository repository;
 
   public ResponseEntity<ResponseBase<List<Name>>> run(String error) {
-    logger.info("Retrieving pipeline datas...");
+    logger.info("Retrieving names...");
 
     try {
       // Get data
-      var pipelineDatas = getPipelineDatas();
+      var names = getNames();
 
       // Create success response
-      String message = "Pipeline datas are retrieved successfully.";
-      return createResponse(message, pipelineDatas, HttpStatus.OK);
+      String message = "Names are retrieved successfully.";
+      return createResponse(message, names, HttpStatus.OK);
     } catch (Exception e) {
 
       // Create fail response
-      String message = "Pipeline datas are not retrieved successfully.";
+      String message = "Names are not retrieved successfully.";
       logger.error(message);
       return createResponse(message, null, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  private List<Name> getPipelineDatas() {
+  private List<Name> getNames() {
     return repository.findAll();
   }
 
   private ResponseEntity<ResponseBase<List<Name>>> createResponse(
       String message,
-      List<Name> pipelineDatas,
+      List<Name> names,
       HttpStatus statusCode) {
     return new ResponseEntity<ResponseBase<List<Name>>>(
         new ResponseBase<List<Name>>(
             message,
-            pipelineDatas),
+            names),
         statusCode);
   }
 }

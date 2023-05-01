@@ -1,4 +1,4 @@
-package com.newrelic.otelplayground.httpserver.entity;
+package com.newrelic.otelplayground.httpserver.entities;
 
 import jakarta.persistence.*;
 

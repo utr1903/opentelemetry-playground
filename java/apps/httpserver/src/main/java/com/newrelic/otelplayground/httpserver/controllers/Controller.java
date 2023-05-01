@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.newrelic.otelplayground.httpserver.dtos.ResponseBase;
-import com.newrelic.otelplayground.httpserver.entity.Name;
+import com.newrelic.otelplayground.httpserver.entities.Name;
 import com.newrelic.otelplayground.httpserver.services.delete.DeleteService;
 import com.newrelic.otelplayground.httpserver.services.list.ListService;
 
