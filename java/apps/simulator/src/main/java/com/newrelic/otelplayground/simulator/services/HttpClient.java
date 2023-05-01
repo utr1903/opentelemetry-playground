@@ -71,23 +71,6 @@ public class HttpClient implements CommandLineRunner {
         TimeUnit.MILLISECONDS);
   }
 
-  // private void create(
-  // boolean isOtel) {
-
-  // var url = setEndpointUrl(isOtel) + "/create";
-  // var dto = "{\"name\":\"name\",\"value\":\"value\"}";
-
-  // var headers = new HttpHeaders();
-  // headers.setContentType(MediaType.APPLICATION_JSON);
-  // headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-
-  // var entity = new HttpEntity<>(dto, headers);
-  // var response = restTemplate.exchange(url, HttpMethod.POST, entity,
-  // String.class);
-
-  // logger.info(url + response);
-  // }
-
   private void list() {
 
     Span span = tracer.spanBuilder("GET").setSpanKind(SpanKind.CLIENT).startSpan();
