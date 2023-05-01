@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.newrelic.otelplayground.httpserver.dtos.ResponseBase;
-import com.newrelic.otelplayground.httpserver.entities.Name;
+import com.newrelic.otelplayground.httpserver.entity.Name;
 import com.newrelic.otelplayground.httpserver.repositories.NameRepository;
 
 @Service
