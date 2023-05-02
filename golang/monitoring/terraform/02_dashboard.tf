@@ -33,7 +33,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT average(http.client.duration) AS `Latency` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT average(http.client.duration) AS `Latency` WHERE service.name = 'simulator-java' TIMESERIES"
       }
     }
 
@@ -47,7 +47,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) AS `Throughput` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) AS `Throughput` WHERE service.name = 'simulator-java' TIMESERIES"
       }
     }
 
@@ -61,7 +61,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT filter(count(http.client.duration), WHERE numeric(http.status_code) >= 500)/count(http.client.duration)*100 AS `Error rate` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT filter(count(http.client.duration), WHERE numeric(http.status_code) >= 500)/count(http.client.duration)*100 AS `Error rate` WHERE service.name = 'simulator-java' TIMESERIES"
       }
     }
   }
@@ -90,7 +90,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT average(duration.ms) WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT average(duration.ms) WHERE service.name = 'simulator-java' AND span.kind = 'client' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -104,7 +104,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'simulator-java' AND span.kind = 'client' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -118,7 +118,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'simulator-java' AND span.kind = 'client' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' TIMESERIES"
       }
     }
   }
@@ -150,7 +150,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT average(http.server.duration) AS `Response time` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT average(http.server.duration) AS `Response time` WHERE service.name = 'httpserver-java' TIMESERIES"
       }
     }
 
@@ -164,7 +164,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT rate(count(http.server.duration), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT rate(count(http.server.duration), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-java' TIMESERIES"
       }
     }
 
@@ -178,7 +178,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT filter(count(http.server.duration), WHERE numeric(http.status_code) >= 500)/count(http.server.duration)*100 AS `Error rate` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' TIMESERIES"
+        query      = "FROM Metric SELECT filter(count(http.server.duration), WHERE numeric(http.status_code) >= 500)/count(http.server.duration)*100 AS `Error rate` WHERE service.name = 'httpserver-java' TIMESERIES"
       }
     }
   }
@@ -207,7 +207,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT average(duration.ms) AS `Response time` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'server' TIMESERIES"
+        query      = "FROM Span SELECT average(duration.ms) AS `Response time` WHERE service.name = 'httpserver-java' AND span.kind = 'server' TIMESERIES"
       }
     }
 
@@ -221,7 +221,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'server' TIMESERIES"
+        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-java' AND span.kind = 'server' TIMESERIES"
       }
     }
 
@@ -235,7 +235,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'server' TIMESERIES"
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-java' AND span.kind = 'server' TIMESERIES"
       }
     }
 
@@ -260,7 +260,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT average(duration.ms) AS `DB time` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT average(duration.ms) AS `DB time` WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -274,7 +274,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -288,7 +288,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -302,7 +302,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT max(duration.ms) WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
+        query      = "FROM Span SELECT max(duration.ms) WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
       }
     }
 
@@ -316,7 +316,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT rate(count(*), 1 minute) WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
+        query      = "FROM Span SELECT rate(count(*), 1 minute) WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
       }
     }
 
@@ -330,7 +330,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 WHERE service.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'mysql.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 WHERE service.name = 'httpserver-java' AND span.kind = 'client' AND net.peer.name = 'mysql.java.svc.cluster.local' FACET db.name, db.sql.table, db.operation TIMESERIES"
       }
     }
   }
