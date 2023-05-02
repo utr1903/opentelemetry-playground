@@ -18,7 +18,7 @@ This repository is dedicated to showcase monitoring of various real life scenari
 
 ## Deployment
 
-## Create a K8s cluster
+### Create a K8s cluster
 
 Although this playground can run on any Kubernetes cluster, using a `kind` cluster is recommended for testing purposes.
 
@@ -36,7 +36,7 @@ or you can run the script [`01_create_kind_cluster.sh`](./infra/scripts/01_creat
 bash 01_create_kind_cluster.sh
 ```
 
-## Deploy applications
+### Deploy applications
 
 The playground contains the following applications:
 
