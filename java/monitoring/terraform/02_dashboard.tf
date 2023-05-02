@@ -64,6 +64,146 @@ resource "newrelic_one_dashboard" "apps" {
         query      = "FROM Metric SELECT filter(count(http.client.duration), WHERE numeric(http.status_code) >= 500)/count(http.client.duration)*100 AS `Error rate` WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' TIMESERIES"
       }
     }
+
+    # Recent CPU utilization for the process
+    widget_line {
+      title  = "Recent CPU utilization for the process"
+      column = 1
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.cpu.utilization) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' TIMESERIES"
+      }
+    }
+
+    # Recent CPU utilization for the whole system
+    widget_line {
+      title  = "Recent CPU utilization for the whole system"
+      column = 7
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.system.cpu.utilization) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' TIMESERIES"
+      }
+    }
+
+    # Measure of memory usage by type (bytes)
+    widget_area {
+      title  = "Measure of memory usage by type (bytes)"
+      column = 1
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.usage) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of memory usage by pool (bytes)
+    widget_area {
+      title  = "Measure of memory usage by pool (bytes)"
+      column = 7
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.usage) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of initial memory requested by type (bytes)
+    widget_area {
+      title  = "Measure of initial memory requested by type (bytes)"
+      column = 1
+      row    = 13
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.init) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of initial memory requested by pool (bytes)
+    widget_area {
+      title  = "Measure of initial memory requested by pool (bytes)"
+      column = 7
+      row    = 13
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.init) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of memory committed by type (bytes)
+    widget_area {
+      title  = "Measure of memory committed by type (bytes)"
+      column = 1
+      row    = 16
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.committed) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of memory committed by pool (bytes)
+    widget_area {
+      title  = "Measure of memory committed by pool (bytes)"
+      column = 7
+      row    = 16
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.committed) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of max obtainable memory by type (bytes)
+    widget_area {
+      title  = "Measure of max obtainable memory by type (bytes)"
+      column = 1
+      row    = 19
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(`process.runtime.jvm.memory.limit`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of max obtainable memory by pool (bytes)
+    widget_area {
+      title  = "Measure of max obtainable memory by pool (bytes)"
+      column = 7
+      row    = 19
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(`process.runtime.jvm.memory.limit`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET pool TIMESERIES"
+      }
+    }
   }
 
   page {
@@ -179,6 +319,146 @@ resource "newrelic_one_dashboard" "apps" {
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
         query      = "FROM Metric SELECT filter(count(http.server.duration), WHERE instrumentation.provider = 'opentelemetry' AND numeric(http.status_code) >= 500)/count(http.server.duration)*100 AS `Error rate` WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' TIMESERIES"
+      }
+    }
+
+    # Recent CPU utilization for the process
+    widget_line {
+      title  = "Recent CPU utilization for the process"
+      column = 1
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.cpu.utilization) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' TIMESERIES"
+      }
+    }
+
+    # Recent CPU utilization for the whole system
+    widget_line {
+      title  = "Recent CPU utilization for the whole system"
+      column = 7
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.system.cpu.utilization) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' TIMESERIES"
+      }
+    }
+
+    # Measure of memory usage by type (bytes)
+    widget_area {
+      title  = "Measure of memory usage by type (bytes)"
+      column = 1
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.usage) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of memory usage by pool (bytes)
+    widget_area {
+      title  = "Measure of memory usage by pool (bytes)"
+      column = 7
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.usage) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of initial memory requested by type (bytes)
+    widget_area {
+      title  = "Measure of initial memory requested by type (bytes)"
+      column = 1
+      row    = 13
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.init) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of initial memory requested by pool (bytes)
+    widget_area {
+      title  = "Measure of initial memory requested by pool (bytes)"
+      column = 7
+      row    = 13
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.init) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of memory committed by type (bytes)
+    widget_area {
+      title  = "Measure of memory committed by type (bytes)"
+      column = 1
+      row    = 16
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.committed) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET type TIMESERIES"
+      }
+    }
+
+    # Measure of memory committed by pool (bytes)
+    widget_area {
+      title  = "Measure of memory committed by pool (bytes)"
+      column = 7
+      row    = 16
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(process.runtime.jvm.memory.committed) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of max obtainable memory by type (bytes)
+    widget_area {
+      title  = "Measure of max obtainable memory by type (bytes)"
+      column = 1
+      row    = 19
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(`process.runtime.jvm.memory.limit`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET pool TIMESERIES"
+      }
+    }
+
+    # Measure of max obtainable memory by pool (bytes)
+    widget_area {
+      title  = "Measure of max obtainable memory by pool (bytes)"
+      column = 7
+      row    = 19
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(`process.runtime.jvm.memory.limit`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET pool TIMESERIES"
       }
     }
   }
