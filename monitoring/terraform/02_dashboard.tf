@@ -90,7 +90,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT average(duration.ms) WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT average(duration.ms) WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -104,7 +104,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT rate(count(*), 1 minute) AS `Throughput` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
       }
     }
 
@@ -118,7 +118,7 @@ resource "newrelic_one_dashboard" "apps" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.${var.LANGUAGE_IDENTIFIER}.svc.cluster.local' TIMESERIES"
+        query      = "FROM Span SELECT filter(count(*), WHERE otel.status_code = 'ERROR')/count(*)*100 AS `Error rate` WHERE service.name = 'simulator-${var.LANGUAGE_IDENTIFIER}' AND span.kind = 'client' AND net.peer.name = 'httpserver-${var.LANGUAGE_IDENTIFIER}.otel.svc.cluster.local' TIMESERIES"
       }
     }
   }
