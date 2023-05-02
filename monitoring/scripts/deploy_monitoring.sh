@@ -22,8 +22,8 @@ while (( "$#" )); do
 done
 
 ### Check input
-if [[ $language != "golang" ]]; then
-  echo -e "The flag [--language] is invalid. The supported languages are: golang."
+if [[ $language != "golang" && $language != "java" ]]; then
+  echo -e "The flag [--language] is invalid. The supported languages are: golang, java."
   exit 1
 fi
 
