@@ -10,7 +10,7 @@ resource "newrelic_one_dashboard" "apps" {
   ### SIMULATOR ###
   #################
   page {
-    name = "Simulator (Metrics)"
+    name = "Simulator -> HTTP Server (Metrics)"
 
     # Simulator -> HTTP server
     widget_markdown {
@@ -23,9 +23,9 @@ resource "newrelic_one_dashboard" "apps" {
       text = "## Simulator -> HTTP Server"
     }
 
-    # Latency of calls to HTTP server (ms)
+    # Latency (ms)
     widget_line {
-      title  = "Latency of calls to HTTP server (ms)"
+      title  = "Latency (ms)"
       column = 4
       row    = 1
       width  = 9
@@ -37,9 +37,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Throughput of calls to HTTP server (rpm)
+    # Throughput (rpm)
     widget_line {
-      title  = "Throughput of calls to HTTP server (rpm)"
+      title  = "Throughput (rpm)"
       column = 1
       row    = 4
       width  = 6
@@ -51,9 +51,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Error rate of calls to HTTP server (%)
+    # Error rate (%)
     widget_line {
-      title  = "Error rate of calls to HTTP server (%)"
+      title  = "Error rate (%)"
       column = 7
       row    = 4
       width  = 6
@@ -65,11 +65,95 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
+    # Latency per HTTP method (ms)
+    widget_pie {
+      title  = "Latency per HTTP method (ms)"
+      column = 1
+      row    = 7
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.client.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.method"
+      }
+    }
+
+    # Latency per HTTP status code (ms)
+    widget_pie {
+      title  = "Latency per HTTP status code (ms)"
+      column = 4
+      row    = 7
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.client.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.status_code"
+      }
+    }
+
+    # Latency per HTTP URL (ms)
+    widget_bar {
+      title  = "Latency per HTTP URL (ms)"
+      column = 7
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.client.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.url"
+      }
+    }
+
+    # Throughput per HTTP method (rpm)
+    widget_pie {
+      title  = "Throughput per HTTP method (rpm)"
+      column = 1
+      row    = 10
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.method"
+      }
+    }
+
+    # Throughput per HTTP status code (rpm)
+    widget_pie {
+      title  = "Throughput per HTTP status code (rpm)"
+      column = 4
+      row    = 10
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.status_code"
+      }
+    }
+
+    # Throughput per HTTP URL (rpm)
+    widget_bar {
+      title  = "Throughput per HTTP URL (rpm)"
+      column = 7
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.client.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' FACET http.url"
+      }
+    }
+
     # Recent CPU utilization for the process
     widget_line {
       title  = "Recent CPU utilization for the process"
       column = 1
-      row    = 7
+      row    = 13
       width  = 6
       height = 3
 
@@ -83,7 +167,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_line {
       title  = "Recent CPU utilization for the whole system"
       column = 7
-      row    = 7
+      row    = 13
       width  = 6
       height = 3
 
@@ -97,7 +181,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory usage by type (bytes)"
       column = 1
-      row    = 10
+      row    = 16
       width  = 6
       height = 3
 
@@ -111,7 +195,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory usage by pool (bytes)"
       column = 7
-      row    = 10
+      row    = 16
       width  = 6
       height = 3
 
@@ -125,7 +209,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of initial memory requested by type (bytes)"
       column = 1
-      row    = 13
+      row    = 19
       width  = 6
       height = 3
 
@@ -139,7 +223,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of initial memory requested by pool (bytes)"
       column = 7
-      row    = 13
+      row    = 19
       width  = 6
       height = 3
 
@@ -153,7 +237,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory committed by type (bytes)"
       column = 1
-      row    = 16
+      row    = 22
       width  = 6
       height = 3
 
@@ -167,7 +251,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory committed by pool (bytes)"
       column = 7
-      row    = 16
+      row    = 22
       width  = 6
       height = 3
 
@@ -181,7 +265,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of max obtainable memory by type (bytes)"
       column = 1
-      row    = 19
+      row    = 25
       width  = 6
       height = 3
 
@@ -195,7 +279,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of max obtainable memory by pool (bytes)"
       column = 7
-      row    = 19
+      row    = 25
       width  = 6
       height = 3
 
@@ -207,7 +291,7 @@ resource "newrelic_one_dashboard" "apps" {
   }
 
   page {
-    name = "Simulator (Spans)"
+    name = "Simulator -> HTTP Server (Spans)"
 
     # Simulator -> HTTP server
     widget_markdown {
@@ -220,9 +304,9 @@ resource "newrelic_one_dashboard" "apps" {
       text = "## Simulator -> HTTP Server"
     }
 
-    # Latency of calls to HTTP server (ms)
+    # Latency (ms)
     widget_line {
-      title  = "Latency of calls to HTTP server (ms)"
+      title  = "Latency (ms)"
       column = 4
       row    = 1
       width  = 9
@@ -234,9 +318,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Throughput of calls to HTTP server (rpm)
+    # Throughput (rpm)
     widget_line {
-      title  = "Throughput of calls to HTTP server (rpm)"
+      title  = "Throughput (rpm)"
       column = 1
       row    = 4
       width  = 6
@@ -248,9 +332,9 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
-    # Error rate of calls to HTTP server (%)
+    # Error rate (%)
     widget_line {
-      title  = "Error rate of calls to HTTP server (%)"
+      title  = "Error rate (%)"
       column = 7
       row    = 4
       width  = 6
@@ -322,11 +406,95 @@ resource "newrelic_one_dashboard" "apps" {
       }
     }
 
+    # Latency per HTTP method (ms)
+    widget_pie {
+      title  = "Latency per HTTP method (ms)"
+      column = 1
+      row    = 7
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.server.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.method"
+      }
+    }
+
+    # Latency per HTTP status code (ms)
+    widget_pie {
+      title  = "Latency per HTTP status code (ms)"
+      column = 4
+      row    = 7
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.server.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.status_code"
+      }
+    }
+
+    # Latency per HTTP route (ms)
+    widget_bar {
+      title  = "Latency per HTTP route (ms)"
+      column = 7
+      row    = 7
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT average(http.server.duration) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.route"
+      }
+    }
+
+    # Throughput per HTTP method (rpm)
+    widget_pie {
+      title  = "Throughput per HTTP method (rpm)"
+      column = 1
+      row    = 10
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.server.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.method"
+      }
+    }
+
+    # Throughput per HTTP status code (rpm)
+    widget_pie {
+      title  = "Throughput per HTTP status code (rpm)"
+      column = 4
+      row    = 10
+      width  = 3
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.server.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.status_code"
+      }
+    }
+
+    # Throughput per HTTP route (rpm)
+    widget_bar {
+      title  = "Throughput per HTTP route (rpm)"
+      column = 7
+      row    = 10
+      width  = 6
+      height = 3
+
+      nrql_query {
+        account_id = var.NEW_RELIC_ACCOUNT_ID
+        query      = "FROM Metric SELECT rate(count(http.server.duration), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'httpserver-java' FACET http.route"
+      }
+    }
+
     # Recent CPU utilization for the process
     widget_line {
       title  = "Recent CPU utilization for the process"
       column = 1
-      row    = 7
+      row    = 13
       width  = 6
       height = 3
 
@@ -340,7 +508,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_line {
       title  = "Recent CPU utilization for the whole system"
       column = 7
-      row    = 7
+      row    = 13
       width  = 6
       height = 3
 
@@ -354,7 +522,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory usage by type (bytes)"
       column = 1
-      row    = 10
+      row    = 16
       width  = 6
       height = 3
 
@@ -368,7 +536,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory usage by pool (bytes)"
       column = 7
-      row    = 10
+      row    = 16
       width  = 6
       height = 3
 
@@ -382,7 +550,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of initial memory requested by type (bytes)"
       column = 1
-      row    = 13
+      row    = 19
       width  = 6
       height = 3
 
@@ -396,7 +564,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of initial memory requested by pool (bytes)"
       column = 7
-      row    = 13
+      row    = 19
       width  = 6
       height = 3
 
@@ -410,7 +578,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory committed by type (bytes)"
       column = 1
-      row    = 16
+      row    = 22
       width  = 6
       height = 3
 
@@ -424,7 +592,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of memory committed by pool (bytes)"
       column = 7
-      row    = 16
+      row    = 22
       width  = 6
       height = 3
 
@@ -438,7 +606,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of max obtainable memory by type (bytes)"
       column = 1
-      row    = 19
+      row    = 25
       width  = 6
       height = 3
 
@@ -452,7 +620,7 @@ resource "newrelic_one_dashboard" "apps" {
     widget_area {
       title  = "Measure of max obtainable memory by pool (bytes)"
       column = 7
-      row    = 19
+      row    = 25
       width  = 6
       height = 3
 
