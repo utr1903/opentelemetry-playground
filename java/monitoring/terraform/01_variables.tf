@@ -16,3 +16,8 @@ variable "NEW_RELIC_API_KEY" {
 variable "NEW_RELIC_REGION" {
   type = string
 }
+
+# K8s cluster name
+variable "cluster_name" {
+  type = string
+}
