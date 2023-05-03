@@ -22,8 +22,8 @@ while (( "$#" )); do
 done
 
 ### Check input
-if [[ $language != "golang" ]]; then
-  echo -e "The flag [--language] is invalid. The supported languages are: golang."
+if [[ $language != "golang" && $language != "java" ]]; then
+  echo -e "The flag [--language] is invalid. The supported languages are: golang, java."
   exit 1
 fi
 
@@ -31,27 +31,25 @@ fi
 
 if [[ $flagDestroy != "true" ]]; then
 
-  # Initialise Terraform
-  terraform -chdir=../terraform init
+  # Initialize Terraform
+  terraform -chdir=../../${language}/monitoring/terraform init
 
   # Plan Terraform
-  terraform -chdir=../terraform plan \
+  terraform -chdir=../../${language}/monitoring/terraform plan \
     -var NEW_RELIC_ACCOUNT_ID=$NEWRELIC_ACCOUNT_ID \
     -var NEW_RELIC_API_KEY=$NEWRELIC_API_KEY \
     -var NEW_RELIC_REGION=$NEWRELIC_REGION \
-    -var LANGUAGE_IDENTIFIER=$language \
     -out "./tfplan"
 
   # Apply Terraform
   if [[ $flagDryRun != "true" ]]; then
-    terraform -chdir=../terraform apply tfplan
+    terraform -chdir=../../${language}/monitoring/terraform apply tfplan
   fi
 else
 
   # Destroy Terraform
-  terraform -chdir=../terraform destroy \
+  terraform -chdir=../../${language}/monitoring/terraform destroy \
   -var NEW_RELIC_ACCOUNT_ID=$NEWRELIC_ACCOUNT_ID \
   -var NEW_RELIC_API_KEY=$NEWRELIC_API_KEY \
-  -var NEW_RELIC_REGION=$NEWRELIC_REGION \
-  -var LANGUAGE_IDENTIFIER=$language
+  -var NEW_RELIC_REGION=$NEWRELIC_REGION
 fi
