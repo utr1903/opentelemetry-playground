@@ -334,9 +334,9 @@ resource "newrelic_one_dashboard" "httpserver" {
       }
     }
 
-    # Web throughput (rpm)
+    # Throughput (rpm)
     widget_billboard {
-      title  = "Web throughput (rpm)"
+      title  = "Throughput (rpm)"
       column = 7
       row    = 1
       width  = 3
