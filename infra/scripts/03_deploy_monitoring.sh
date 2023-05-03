@@ -27,6 +27,8 @@ if [[ $language != "golang" && $language != "java" ]]; then
   exit 1
 fi
 
+clusterName="opentelemetry-playground"
+
 ### Set variables
 
 if [[ $flagDestroy != "true" ]]; then
@@ -39,6 +41,7 @@ if [[ $flagDestroy != "true" ]]; then
     -var NEW_RELIC_ACCOUNT_ID=$NEWRELIC_ACCOUNT_ID \
     -var NEW_RELIC_API_KEY=$NEWRELIC_API_KEY \
     -var NEW_RELIC_REGION=$NEWRELIC_REGION \
+    -var cluster_name=$clusterName \
     -out "./tfplan"
 
   # Apply Terraform
@@ -51,5 +54,6 @@ else
   terraform -chdir=../../${language}/monitoring/terraform destroy \
   -var NEW_RELIC_ACCOUNT_ID=$NEWRELIC_ACCOUNT_ID \
   -var NEW_RELIC_API_KEY=$NEWRELIC_API_KEY \
-  -var NEW_RELIC_REGION=$NEWRELIC_REGION
+  -var NEW_RELIC_REGION=$NEWRELIC_REGION \
+  -var cluster_name=$clusterName
 fi
