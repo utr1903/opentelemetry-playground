@@ -390,9 +390,9 @@ resource "newrelic_one_dashboard" "simulator" {
       text = "## Application Performance\n\nThis page is dedicated for the application golden signals retrieved from the metrics.\n\n- Latency\n- Throughput\n- Error Rate"
     }
 
-    # Latency (ms)
+    # Average latency across all instances (ms)
     widget_billboard {
-      title  = "Latency (ms)"
+      title  = "Average latency across all instances (ms)"
       column = 4
       row    = 1
       width  = 3
@@ -404,9 +404,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Throughput (rpm)
+    # Total throughput across all instances  (rpm)
     widget_billboard {
-      title  = "Throughput (rpm)"
+      title  = "Total throughput across all instances (rpm)"
       column = 7
       row    = 1
       width  = 3
@@ -418,9 +418,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Error rate (%)
+    # Average error rate across all instances (%)
     widget_billboard {
-      title  = "Error rate (%)"
+      title  = "Average error rate across all instances (%)"
       column = 10
       row    = 1
       width  = 3
@@ -443,9 +443,9 @@ resource "newrelic_one_dashboard" "simulator" {
       text = "## Latency\n\nLatency is monitored per the metric `http.client.duration` which represents a histogram.\n\nIt corresponds to the aggregated client request duration to an external HTTP server.\n\nMoreover, the detailed performance can be investigated according to the methods, response codes, instances, URLs etc."
     }
 
-    # Latency per HTTP status code (ms)
+    # Average latency per HTTP status code across all instances (ms)
     widget_pie {
-      title  = "Latency per HTTP status code (ms)"
+      title  = "Average latency per HTTP status code across all instances (ms)"
       column = 4
       row    = 4
       width  = 3
@@ -457,9 +457,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Latency per HTTP method & URL (ms)
+    # Average latency per HTTP method & URL across all instances (ms)
     widget_bar {
-      title  = "Latency per HTTP method & URL (ms)"
+      title  = "Average latency per HTTP method & URL across all instances (ms)"
       column = 7
       row    = 4
       width  = 6
@@ -471,9 +471,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Overall latency (ms)
+    # Average latency across all instances (ms)
     widget_line {
-      title  = "Overall latency (ms)"
+      title  = "Average latency across all instances (ms)"
       column = 1
       row    = 7
       width  = 6
@@ -485,9 +485,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Latency per instance (ms)
+    # Average latency per instance (ms)
     widget_line {
-      title  = "Latency per instance (ms)"
+      title  = "Average latency per instance (ms)"
       column = 7
       row    = 7
       width  = 6
@@ -495,7 +495,7 @@ resource "newrelic_one_dashboard" "simulator" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT average(`http.client.duration`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' TIMESERIES"
+        query      = "FROM Metric SELECT average(`http.client.duration`) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' FACET k8s.pod.name TIMESERIES"
       }
     }
 
@@ -510,9 +510,9 @@ resource "newrelic_one_dashboard" "simulator" {
       text = "## Throughput\n\nThroughput is monitored per the rate of change in the metric `http.client.duration` in format of request per minute.\n\nIt corresponds to the aggregated amount of requests which are performed against an external HTTP server in a minute.\n\nMoreover, the detailed performance can be investigated according to the methods, response codes, instances, URLs etc."
     }
 
-    # Throughput per HTTP status code (rpm)
+    # Total throughput per HTTP status code across all instances (rpm)
     widget_pie {
-      title  = "Throughput per HTTP status code (rpm)"
+      title  = "Total throughput per HTTP status code across all instances (rpm)"
       column = 4
       row    = 10
       width  = 3
@@ -524,9 +524,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Throughput per HTTP method & URL (rpm)
+    # Total throughput per HTTP method & URL across all instances (rpm)
     widget_bar {
-      title  = "Throughput per HTTP method & URL (rpm)"
+      title  = "Total throughput per HTTP method & URL across all instances (rpm)"
       column = 7
       row    = 10
       width  = 6
@@ -538,9 +538,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Overall throughput (rpm)
+    # Total throughput across all instances (rpm)
     widget_line {
-      title  = "Overall throughput (rpm)"
+      title  = "Total throughput across all instances (rpm)"
       column = 1
       row    = 13
       width  = 6
@@ -552,9 +552,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Throughput per instance (rpm)
+    # Average throughput per instance (rpm)
     widget_line {
-      title  = "Throughput per instance (rpm)"
+      title  = "Average throughput per instance (rpm)"
       column = 7
       row    = 13
       width  = 6
@@ -562,7 +562,7 @@ resource "newrelic_one_dashboard" "simulator" {
 
       nrql_query {
         account_id = var.NEW_RELIC_ACCOUNT_ID
-        query      = "FROM Metric SELECT rate(count(`http.client.duration`), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' TIMESERIES"
+        query      = "FROM Metric SELECT rate(count(`http.client.duration`), 1 minute) WHERE instrumentation.provider = 'opentelemetry' AND service.name = 'simulator-java' AND net.peer.name = 'httpserver-java.otel.svc.cluster.local' FACET k8s.pod.name TIMESERIES"
       }
     }
 
@@ -577,9 +577,9 @@ resource "newrelic_one_dashboard" "simulator" {
       text = "## Error rate\n\nError rate is monitored per the metric `http.client.duration` which ended with an error.\n\nIt corresponds to the ratio of the aggregated amount of requests which have an HTTP status code of above 500 in compared to all requests.\n\nMoreover, the detailed performance can be investigated according to the methods, response codes, instances, URLs etc."
     }
 
-    # Error rate per HTTP status code (%)
+    # Average error rate per HTTP status code across all instances (%)
     widget_pie {
-      title  = "Error rate per HTTP status code (%)"
+      title  = "Average error rate per HTTP status code across all instances (%)"
       column = 4
       row    = 16
       width  = 3
@@ -591,9 +591,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Error rate per HTTP method & URL (%)
+    # Average error rate per HTTP method & URL across all instances (%)
     widget_bar {
-      title  = "Error rate per HTTP method & URL (%)"
+      title  = "Error rate per HTTP method & URL across all instances (%)"
       column = 7
       row    = 16
       width  = 6
@@ -605,9 +605,9 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Overall error Rate (%)
+    # Average error rate across all instances (%)
     widget_line {
-      title  = "Overall error rate (%)"
+      title  = "Average error rate across all instances (%)"
       column = 1
       row    = 19
       width  = 6
@@ -619,7 +619,7 @@ resource "newrelic_one_dashboard" "simulator" {
       }
     }
 
-    # Error rate per instance (%)
+    # Average error rate per instance (%)
     widget_line {
       title  = "Error rate per instance (%)"
       column = 7
