@@ -76,7 +76,7 @@ declare -A httpserver
 httpserver["name"]="httpserver-${language}"
 httpserver["imageName"]="${repoName}:${httpserver[name]}-${platform}"
 httpserver["namespace"]="otel"
-httpserver["replicas"]=1
+httpserver["replicas"]=2
 httpserver["port"]=8080
 
 # kafkaconsumer
@@ -84,14 +84,14 @@ declare -A kafkaconsumer
 kafkaconsumer["name"]="kafkaconsumer-${language}"
 kafkaconsumer["imageName"]="${repoName}:${kafkaconsumer[name]}-${platform}"
 kafkaconsumer["namespace"]="otel"
-kafkaconsumer["replicas"]=1
+kafkaconsumer["replicas"]=2
 
 # simulator
 declare -A simulator
 simulator["name"]="simulator-${language}"
 simulator["imageName"]="${repoName}:${simulator[name]}-${platform}"
 simulator["namespace"]="otel"
-simulator["replicas"]=1
+simulator["replicas"]=3
 simulator["port"]=8080
 simulator["httpInterval"]=2000
 simulator["kafkaInterval"]=1000
@@ -160,23 +160,36 @@ helm upgrade ${otelcollector[name]} \
   --create-namespace \
   --namespace ${otelcollector[namespace]} \
   --set mode=${otelcollector[mode]} \
+  --set presets.kubernetesAttributes.enabled=true \
   --set config.receivers.jaeger=null \
   --set config.receivers.prometheus=null \
   --set config.receivers.zipkin=null \
   --set config.processors.cumulativetodelta.include.match_type="regexp" \
-  --set config.processors.cumulativetodelta.include.metrics[0]="*" \
+  --set config.processors.cumulativetodelta.include.metrics[0]="http*" \
+  --set config.processors.cumulativetodelta.include.metrics[1]="process*" \
+  --set config.processors.attributes.actions[0].key="k8s.cluster.name" \
+  --set config.processors.attributes.actions[0].value=$clusterName \
+  --set config.processors.attributes.actions[0].action="upsert" \
+  --set config.processors.k8sattributes.passthrough=false \
+  --set config.processors.k8sattributes.extract.metadata[0]="k8s.node.name" \
+  --set config.processors.k8sattributes.extract.metadata[1]="k8s.namespace.name" \
+  --set config.processors.k8sattributes.extract.metadata[2]="k8s.pod.name" \
   --set config.exporters.logging=null \
   --set config.exporters.otlp.endpoint="otlp.eu01.nr-data.net:4317" \
   --set config.exporters.otlp.tls.insecure=false \
   --set config.exporters.otlp.headers.api-key=$NEWRELIC_LICENSE_KEY \
   --set config.service.pipelines.traces.receivers[0]="otlp" \
-  --set config.service.pipelines.traces.processors[0]="batch" \
-  --set config.service.pipelines.traces.processors[1]="memory_limiter" \
+  --set config.service.pipelines.traces.processors[0]="k8sattributes" \
+  --set config.service.pipelines.traces.processors[1]="attributes" \
+  --set config.service.pipelines.traces.processors[2]="memory_limiter" \
+  --set config.service.pipelines.traces.processors[3]="batch" \
   --set config.service.pipelines.traces.exporters[0]="otlp" \
   --set config.service.pipelines.metrics.receivers[0]="otlp" \
-  --set config.service.pipelines.metrics.processors[0]="batch" \
-  --set config.service.pipelines.metrics.processors[1]="memory_limiter" \
-  --set config.service.pipelines.metrics.processors[2]="cumulativetodelta" \
+  --set config.service.pipelines.metrics.processors[0]="cumulativetodelta" \
+  --set config.service.pipelines.metrics.processors[1]="k8sattributes" \
+  --set config.service.pipelines.metrics.processors[2]="attributes" \
+  --set config.service.pipelines.metrics.processors[3]="memory_limiter" \
+  --set config.service.pipelines.metrics.processors[4]="batch" \
   --set config.service.pipelines.metrics.exporters[0]="otlp" \
   --set config.service.pipelines.logs=null \
   "open-telemetry/opentelemetry-collector"
