@@ -50,6 +50,7 @@ public class ListService {
   private NameRepository repository;
 
   public ListService(OpenTelemetry openTelemetry) {
+    // Get tracer
     this.tracer = openTelemetry.getTracer(ListService.class.getName());
   }
 
@@ -73,15 +74,17 @@ public class ListService {
   }
 
   private List<Name> getNames() {
+    // Set database statement
+    String dbStatement = DB_OPERATION + " " + mysqlDatabase + "." + mysqlTable;
 
-    Span span = tracer.spanBuilder(DB_OPERATION + " " + mysqlDatabase + "." + mysqlTable)
+    Span span = tracer.spanBuilder(dbStatement)
         .setSpanKind(SpanKind.CLIENT)
         .startSpan();
 
     // Make the span the current span
     try (Scope scope = span.makeCurrent()) {
 
-      setCommonSpanAttributes(span);
+      setCommonSpanAttributes(span, dbStatement);
       return repository.findAll();
     } catch (Exception e) {
       setExceptionSpanAttributes(span, e);
@@ -103,7 +106,7 @@ public class ListService {
         statusCode);
   }
 
-  private void setCommonSpanAttributes(Span span) {
+  private void setCommonSpanAttributes(Span span, String dbStatement) {
     span.setAttribute(SemanticAttributes.DB_SYSTEM, "mysql");
     span.setAttribute(SemanticAttributes.DB_USER, mysqlUser);
     span.setAttribute(SemanticAttributes.DB_NAME, mysqlDatabase);
@@ -111,6 +114,8 @@ public class ListService {
     span.setAttribute(SemanticAttributes.NET_PEER_NAME, mysqlServer);
     span.setAttribute(SemanticAttributes.NET_PEER_PORT, Integer.parseInt(mysqlPort));
     span.setAttribute(SemanticAttributes.NET_TRANSPORT, "IP.TCP");
+    span.setAttribute(SemanticAttributes.DB_OPERATION, DB_OPERATION);
+    span.setAttribute(SemanticAttributes.DB_STATEMENT, dbStatement);
   }
 
   private void setExceptionSpanAttributes(Span span, Exception e) {

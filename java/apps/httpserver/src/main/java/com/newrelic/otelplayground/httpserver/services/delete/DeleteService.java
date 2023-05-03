@@ -47,6 +47,7 @@ public class DeleteService {
   private NameRepository repository;
 
   public DeleteService(OpenTelemetry openTelemetry) {
+    // Get tracer
     this.tracer = openTelemetry.getTracer(DeleteService.class.getName());
   }
 
@@ -70,14 +71,17 @@ public class DeleteService {
   }
 
   private void deleteNames() {
-    Span span = tracer.spanBuilder(DB_OPERATION + " name FROM " + mysqlTable)
+    // Set database statement
+    String dbStatement = DB_OPERATION + " name FROM " + mysqlTable;
+
+    Span span = tracer.spanBuilder(dbStatement)
         .setSpanKind(SpanKind.CLIENT)
         .startSpan();
 
     // Make the span the current span
     try (Scope scope = span.makeCurrent()) {
 
-      setCommonSpanAttributes(span);
+      setCommonSpanAttributes(span, dbStatement);
       repository.deleteAll();
     } catch (Exception e) {
       setExceptionSpanAttributes(span, e);
@@ -98,7 +102,7 @@ public class DeleteService {
         statusCode);
   }
 
-  private void setCommonSpanAttributes(Span span) {
+  private void setCommonSpanAttributes(Span span, String dbStatement) {
     span.setAttribute(SemanticAttributes.DB_SYSTEM, "mysql");
     span.setAttribute(SemanticAttributes.DB_USER, mysqlUser);
     span.setAttribute(SemanticAttributes.DB_NAME, mysqlDatabase);
@@ -106,6 +110,8 @@ public class DeleteService {
     span.setAttribute(SemanticAttributes.NET_PEER_NAME, mysqlServer);
     span.setAttribute(SemanticAttributes.NET_PEER_PORT, Integer.parseInt(mysqlPort));
     span.setAttribute(SemanticAttributes.NET_TRANSPORT, "IP.TCP");
+    span.setAttribute(SemanticAttributes.DB_OPERATION, DB_OPERATION);
+    span.setAttribute(SemanticAttributes.DB_STATEMENT, dbStatement);
   }
 
   private void setExceptionSpanAttributes(Span span, Exception e) {
