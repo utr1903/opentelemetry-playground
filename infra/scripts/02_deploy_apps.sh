@@ -191,7 +191,12 @@ helm upgrade ${otelcollector[name]} \
   --set config.service.pipelines.metrics.processors[3]="memory_limiter" \
   --set config.service.pipelines.metrics.processors[4]="batch" \
   --set config.service.pipelines.metrics.exporters[0]="otlp" \
-  --set config.service.pipelines.logs=null \
+  --set config.service.pipelines.logs.receivers[0]="otlp" \
+  --set config.service.pipelines.logs.processors[0]="k8sattributes" \
+  --set config.service.pipelines.logs.processors[1]="attributes" \
+  --set config.service.pipelines.logs.processors[2]="memory_limiter" \
+  --set config.service.pipelines.logs.processors[3]="batch" \
+  --set config.service.pipelines.logs.exporters[0]="otlp" \
   "open-telemetry/opentelemetry-collector"
 
 # httpserver

@@ -2,8 +2,8 @@ package com.newrelic.otelplayground.httpserver.controllers;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,7 +21,7 @@ import com.newrelic.otelplayground.httpserver.services.list.ListService;
 @RequestMapping
 public class Controller {
 
-	private final Logger logger = LoggerFactory.getLogger(Controller.class);
+	private static final Logger logger = LogManager.getLogger(ListService.class);
 
 	@Autowired
 	private ListService listService;

@@ -2,8 +2,8 @@ package com.newrelic.otelplayground.httpserver.services.list;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -25,7 +25,7 @@ import io.opentelemetry.semconv.trace.attributes.SemanticAttributes.OtelStatusCo
 @Service
 public class ListService {
 
-  private final Logger logger = LoggerFactory.getLogger(ListService.class);
+  private static final Logger logger = LogManager.getLogger(ListService.class);
 
   @Value(value = "${MYSQL_SERVER}")
   private String mysqlServer;
