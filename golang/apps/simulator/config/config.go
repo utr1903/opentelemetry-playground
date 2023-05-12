@@ -21,6 +21,7 @@ type SimulatorConfig struct {
 	Users []string
 }
 
+// Creates new config object by parsing environment variables
 func NewConfig() *SimulatorConfig {
 	return &SimulatorConfig{
 		ServiceName: os.Getenv("OTEL_SERVICE_NAME"),

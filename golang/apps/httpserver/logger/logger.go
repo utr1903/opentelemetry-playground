@@ -10,6 +10,7 @@ import (
 
 var serviceName string
 
+// Creates new logger
 func NewLogger(cfg *config.HttpServerConfig) {
 
 	// Set service name
@@ -22,6 +23,7 @@ func NewLogger(cfg *config.HttpServerConfig) {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 }
 
+// Logs a message with trace context
 func Log(
 	lvl logrus.Level,
 	ctx context.Context,

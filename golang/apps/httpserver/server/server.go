@@ -19,6 +19,7 @@ import (
 
 const SERVER string = "httpserver"
 
+// Server handler
 func Handler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -40,20 +41,8 @@ func Handler(
 	createHttpResponse(&w, http.StatusOK, []byte("Success"), &parentSpan)
 }
 
+// Performs the database query against the MySQL database
 func performQuery(
-	w http.ResponseWriter,
-	r *http.Request,
-	parentSpan *trace.Span,
-) error {
-
-	err := performQueryWithDbSpan(w, r, parentSpan)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func performQueryWithDbSpan(
 	w http.ResponseWriter,
 	r *http.Request,
 	parentSpan *trace.Span,
@@ -66,6 +55,7 @@ func performQueryWithDbSpan(
 		return err
 	}
 
+	// Create database span
 	ctx, dbSpan := (*parentSpan).TracerProvider().
 		Tracer(SERVER).
 		Start(
@@ -108,6 +98,7 @@ func performQueryWithDbSpan(
 	return nil
 }
 
+// Creates the database query operation and statement
 func createDbQuery(
 	r *http.Request,
 ) (
@@ -144,6 +135,7 @@ func createDbQuery(
 	return dbOperation, dbStatement, nil
 }
 
+// Executes the MySQL database statement
 func executeDbQuery(
 	ctx context.Context,
 	r *http.Request,
@@ -195,6 +187,7 @@ func executeDbQuery(
 	return nil
 }
 
+// Creates a HTTP response
 func createHttpResponse(
 	w *http.ResponseWriter,
 	statusCode int,
@@ -210,6 +203,7 @@ func createHttpResponse(
 	(*serverSpan).SetAttributes(attrs...)
 }
 
+// Returns common MySQL database span attributes
 func getCommonDbSpanAttributes() []attribute.KeyValue {
 	return []attribute.KeyValue{
 		semconv.DBSystemMySQL,
@@ -222,6 +216,7 @@ func getCommonDbSpanAttributes() []attribute.KeyValue {
 	}
 }
 
+// Performs a postprocessing step
 func performPostprocessing(
 	r *http.Request,
 	parentSpan *trace.Span,

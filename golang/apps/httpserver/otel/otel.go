@@ -20,6 +20,7 @@ import (
 
 var otelExporterType = os.Getenv("OTEL_EXPORTER_TYPE")
 
+// Creates new trace provider
 func NewTraceProvider(
 	ctx context.Context,
 ) *sdktrace.TracerProvider {
@@ -72,6 +73,7 @@ func NewTraceProvider(
 	return tp
 }
 
+// Shuts down trace provider
 func ShutdownTraceProvider(
 	ctx context.Context,
 	tp *sdktrace.TracerProvider,
@@ -84,6 +86,7 @@ func ShutdownTraceProvider(
 	}
 }
 
+// Creates new meter provider
 func NewMetricProvider(
 	ctx context.Context,
 ) *sdkmetric.MeterProvider {
@@ -107,6 +110,7 @@ func NewMetricProvider(
 	return mp
 }
 
+// Shuts down meter provider
 func ShutdownMetricProvider(
 	ctx context.Context,
 	mp *sdkmetric.MeterProvider,

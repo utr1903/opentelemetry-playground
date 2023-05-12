@@ -43,6 +43,7 @@ var (
 	}
 )
 
+// Starts simulating HTTP server
 func SimulateHttpServer(
 	cfg *config.SimulatorConfig,
 ) {
@@ -85,13 +86,14 @@ func SimulateHttpServer(
 	}()
 }
 
+// Initializes the HTTP server simulator by setting the necessary variables
 func initSimulator(
 	cfg *config.SimulatorConfig,
 ) {
 	// Set HTTP server related parameters
 	setHttpServerParameters(cfg)
 
-	// Create fresh HTTP client
+	// Create HTTP client
 	createHttpClient()
 
 	// Create histogram metric meter for HTTP client duration
@@ -101,6 +103,7 @@ func initSimulator(
 	randomizer = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
+// Sets HTTP server related parameters
 func setHttpServerParameters(
 	cfg *config.SimulatorConfig,
 ) {
@@ -117,6 +120,7 @@ func setHttpServerParameters(
 	httpserverPort = cfg.HttpserverPort
 }
 
+// Creates a fresh HTTP client
 func createHttpClient() {
 	httpClient = &http.Client{
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
@@ -124,6 +128,7 @@ func createHttpClient() {
 	}
 }
 
+// Creates a histogram metric meter for HTTP client duration
 func createHttpClientDurationMetric() {
 	meter, err := global.MeterProvider().
 		Meter(serviceName).
@@ -135,6 +140,8 @@ func createHttpClientDurationMetric() {
 	httpClientDuration = meter
 }
 
+// Puts necessary request parameters into a map in order to
+// cause a random error
 func causeRandomError() map[string]string {
 
 	randomNum := randomizer.Intn(15)
@@ -147,6 +154,7 @@ func causeRandomError() map[string]string {
 	return reqParams
 }
 
+// Performs the HTTP call to the HTTP server
 func performHttpCall(
 	ctx context.Context,
 	httpMethod string,
@@ -219,6 +227,7 @@ func performHttpCall(
 	return nil
 }
 
+// Records HTTP client duration
 func recordClientDuration(
 	ctx context.Context,
 	httpMethod string,

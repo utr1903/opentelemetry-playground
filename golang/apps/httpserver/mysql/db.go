@@ -10,6 +10,7 @@ import (
 
 var mysqlDatabase *sql.DB
 
+// Creates MySQL database connection
 func CreateDatabaseConnection(
 	cfg *config.HttpServerConfig,
 ) {
@@ -45,6 +46,7 @@ func CreateDatabaseConnection(
 	mysqlDatabase = db
 }
 
+// Returns the created MySQL database connection instance
 func Get() *sql.DB {
 	return mysqlDatabase
 }

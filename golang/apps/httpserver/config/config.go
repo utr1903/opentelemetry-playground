@@ -24,6 +24,7 @@ type HttpServerConfig struct {
 
 var cfg *HttpServerConfig
 
+// Creates new config object by parsing environment variables
 func NewConfig() {
 	port, err := strconv.ParseInt(os.Getenv("MYSQL_PORT"), 10, 64)
 	if err != nil {
@@ -43,6 +44,7 @@ func NewConfig() {
 	}
 }
 
+// Returns instantiated config object
 func GetConfig() *HttpServerConfig {
 	return cfg
 }

@@ -21,10 +21,12 @@ var (
 	randomizer *rand.Rand
 )
 
+// Starts simulating Kafka consumer
 func SimulateKafka(
 	cfg *config.SimulatorConfig,
 ) {
 
+	// Initialize simulator
 	initSimulator(cfg)
 
 	interval, err := strconv.ParseInt(kafkaRequestInterval, 10, 64)
@@ -38,7 +40,6 @@ func SimulateKafka(
 
 	// Create producer
 	producer := createKafkaProducer()
-	// defer producer.Close()
 
 	go func() {
 
@@ -68,6 +69,7 @@ func SimulateKafka(
 	}()
 }
 
+// Initializes the Kafka producer by setting the necessary variables
 func initSimulator(
 	cfg *config.SimulatorConfig,
 ) {
@@ -77,6 +79,8 @@ func initSimulator(
 	// Initialize random number generator
 	randomizer = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
+
+// Sets Kafka related parameters
 func setKafkaParameters(
 	cfg *config.SimulatorConfig,
 ) {
@@ -85,6 +89,7 @@ func setKafkaParameters(
 	kafkaTopic = cfg.KafkaTopic
 }
 
+// Creates Kafta topic to publish the messages into
 func createKafkaTopic() {
 
 	// Set up configuration
@@ -133,6 +138,7 @@ func createKafkaTopic() {
 	}
 }
 
+// Creates the Kafka producer
 func createKafkaProducer() sarama.AsyncProducer {
 
 	// Create config

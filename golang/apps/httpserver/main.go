@@ -15,7 +15,7 @@ import (
 
 func main() {
 
-	// Parse simulator parameters
+	// Create new config
 	config.NewConfig()
 	cfg := config.GetConfig()
 

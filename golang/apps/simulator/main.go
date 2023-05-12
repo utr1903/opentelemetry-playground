@@ -16,7 +16,7 @@ func main() {
 	// Get context
 	ctx := context.Background()
 
-	// Parse simulator parameters
+	// Create new config
 	cfg := config.NewConfig()
 
 	// Initialize logger
@@ -34,6 +34,7 @@ func main() {
 	go httpclient.SimulateHttpServer(cfg)
 	go kafkaproducer.SimulateKafka(cfg)
 
+	// Wait for signal to shutdown the simulator
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
