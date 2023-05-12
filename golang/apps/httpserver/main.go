@@ -15,6 +15,13 @@ var (
 )
 
 func main() {
+
+	// Parse arguments and feature flags
+	parseFlags()
+
+	// Initialize logger
+	initLogger()
+
 	// Get context
 	ctx := context.Background()
 
@@ -34,4 +41,9 @@ func main() {
 	http.Handle("/list", otelhttp.NewHandler(http.HandlerFunc(listHandler), "list"))
 	http.Handle("/delete", otelhttp.NewHandler(http.HandlerFunc(deleteHandler), "delete"))
 	http.ListenAndServe(":"+appPort, nil)
+}
+
+func parseFlags() {
+	appName = os.Getenv("APP_NAME")
+	appPort = os.Getenv("APP_PORT")
 }
