@@ -40,6 +40,8 @@ spec:
               value: {{ .Values.otel.exporter }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.otlp.endpoint }}
+            - name: OTEL_LOGS_EXPORTER
+              value: otlp
             - name: OTEL_EXPORTER_OTLP_HEADERS
               value: {{ .Values.otlp.headers }}
           ports:

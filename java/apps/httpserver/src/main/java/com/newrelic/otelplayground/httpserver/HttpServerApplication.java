@@ -31,7 +31,7 @@ public class HttpServerApplication {
 		HttpServerApplication.openTelemetry = openTelemetrySdk;
 
 		// Set GlobalLoggerProvider, which is used by Log4j2 appender
-		GlobalLoggerProvider.set(openTelemetrySdk.getSdkLoggerProvider());
+    GlobalLoggerProvider.set(openTelemetrySdk.getSdkLoggerProvider());
 
 		// Register runtime metrics instrumentation
 		BufferPools.registerObservers(openTelemetrySdk);

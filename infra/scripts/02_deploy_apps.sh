@@ -108,12 +108,15 @@ if [[ $build == "true" ]]; then
     "../../${language}/apps/httpserver/."
   docker push "${DOCKERHUB_NAME}/${httpserver[imageName]}"
 
-  # kafkaconsumer
-  docker build \
-    --platform "linux/${platform}" \
-    --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
-    "../../${language}/apps/kafkaconsumer/."
-  docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
+  # kafkaconsumer is only available in golang
+  if [[ $language == "golang" ]]; then
+    # kafkaconsumer
+    docker build \
+      --platform "linux/${platform}" \
+      --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
+      "../../${language}/apps/kafkaconsumer/."
+    docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
+  fi
 
   # simulator
   docker build \
@@ -191,7 +194,12 @@ helm upgrade ${otelcollector[name]} \
   --set config.service.pipelines.metrics.processors[3]="memory_limiter" \
   --set config.service.pipelines.metrics.processors[4]="batch" \
   --set config.service.pipelines.metrics.exporters[0]="otlp" \
-  --set config.service.pipelines.logs=null \
+  --set config.service.pipelines.logs.receivers[0]="otlp" \
+  --set config.service.pipelines.logs.processors[0]="k8sattributes" \
+  --set config.service.pipelines.logs.processors[1]="attributes" \
+  --set config.service.pipelines.logs.processors[2]="memory_limiter" \
+  --set config.service.pipelines.logs.processors[3]="batch" \
+  --set config.service.pipelines.logs.exporters[0]="otlp" \
   "open-telemetry/opentelemetry-collector"
 
 # httpserver
@@ -217,30 +225,34 @@ helm upgrade ${httpserver[name]} \
   --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/httpserver"
 
-# kafkaconsumer
-helm upgrade ${kafkaconsumer[name]} \
-  --install \
-  --wait \
-  --debug \
-  --create-namespace \
-  --namespace=${kafkaconsumer[namespace]} \
-  --set dockerhubName=$DOCKERHUB_NAME \
-  --set imageName=${kafkaconsumer[imageName]} \
-  --set imagePullPolicy="Always" \
-  --set name=${kafkaconsumer[name]} \
-  --set replicas=${kafkaconsumer[replicas]} \
-  --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
-  --set kafka.topic=${kafka[topic]} \
-  --set kafka.groupId=${kafkaconsumer[name]} \
-  --set mysql.server="${mysql[name]}.${mysql[namespace]}.svc.cluster.local" \
-  --set mysql.username=${mysql[username]} \
-  --set mysql.password=${mysql[password]} \
-  --set mysql.port=${mysql[port]} \
-  --set mysql.database=${mysql[database]} \
-  --set mysql.table=${mysql[table]} \
-  --set otel.exporter="otlp" \
-  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
-  "../helm/kafkaconsumer"
+# kafkaconsumer is only available in golang
+if [[ $language == "golang" ]]; then
+
+  # kafkaconsumer
+  helm upgrade ${kafkaconsumer[name]} \
+    --install \
+    --wait \
+    --debug \
+    --create-namespace \
+    --namespace=${kafkaconsumer[namespace]} \
+    --set dockerhubName=$DOCKERHUB_NAME \
+    --set imageName=${kafkaconsumer[imageName]} \
+    --set imagePullPolicy="Always" \
+    --set name=${kafkaconsumer[name]} \
+    --set replicas=${kafkaconsumer[replicas]} \
+    --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
+    --set kafka.topic=${kafka[topic]} \
+    --set kafka.groupId=${kafkaconsumer[name]} \
+    --set mysql.server="${mysql[name]}.${mysql[namespace]}.svc.cluster.local" \
+    --set mysql.username=${mysql[username]} \
+    --set mysql.password=${mysql[password]} \
+    --set mysql.port=${mysql[port]} \
+    --set mysql.database=${mysql[database]} \
+    --set mysql.table=${mysql[table]} \
+    --set otel.exporter="otlp" \
+    --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+    "../helm/kafkaconsumer"
+fi
 
 # simulator
 helm upgrade ${simulator[name]} \
