@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -79,7 +79,7 @@ func performQueryWithDbSpan(
 	err = executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OtelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
@@ -93,43 +93,13 @@ func performQueryWithDbSpan(
 		log(logrus.ErrorLevel, ctx, getUser(r), msg)
 
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OtelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
 	}
 	dbSpan.SetAttributes(dbSpanAttrs...)
-	return nil
-}
-
-func performQueryWithoutDbSpan(
-	w http.ResponseWriter,
-	r *http.Request,
-	parentSpan *trace.Span,
-) error {
-	// Build query
-	_, dbStatement, err := createDbQuery(r)
-	if err != nil {
-		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"), parentSpan)
-		return err
-	}
-
-	// Perform query
-	err = executeDbQuery(r.Context(), r, dbStatement)
-	if err != nil {
-		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
-		return err
-	}
-
-	// Parse query parameters
-	databaseConnectionError := r.URL.Query().Get("databaseConnectionError")
-	if databaseConnectionError == "true" {
-		msg := "Connection to database is lost."
-		log(logrus.ErrorLevel, r.Context(), getUser(r), msg)
-		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
-		return errors.New("database connection lost")
-	}
 	return nil
 }
 
