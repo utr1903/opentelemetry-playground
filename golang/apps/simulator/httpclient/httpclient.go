@@ -173,12 +173,12 @@ func recordClientDuration(
 	httpserverPortAsInt, _ := strconv.Atoi(httpserverPort)
 	attributes := attribute.NewSet(
 		semconv.HTTPSchemeHTTP,
-		semconv.HTTPFlavorKey.String("1.1"),
-		semconv.HTTPMethod("DELETE"),
+		semconv.HTTPFlavorHTTP11,
+		semconv.HTTPMethod(http.MethodDelete),
 		semconv.NetPeerName(httpserverEndpoint),
 		semconv.NetPeerPort(httpserverPortAsInt),
 		semconv.HTTPStatusCode(statusCode),
 	)
 
-	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice()...)
+	httpClientDuration.Record(ctx, elapsedTime, attributes.ToSlice())
 }
