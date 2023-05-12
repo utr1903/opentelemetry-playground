@@ -12,7 +12,9 @@ var serviceName string
 
 func NewLogger(cfg *config.SimulatorConfig) {
 
+	// Set service name
 	serviceName = cfg.ServiceName
+
 	// Set log level
 	logrus.SetLevel(logrus.InfoLevel)
 
