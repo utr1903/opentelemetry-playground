@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -9,12 +9,17 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/config"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func handler(
+const SERVER string = "httpserver"
+
+func Handler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -23,7 +28,7 @@ func handler(
 	parentSpan := trace.SpanFromContext(r.Context())
 	defer parentSpan.End()
 
-	log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
+	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
 
 	// Perform database query
 	err := performQuery(w, r, &parentSpan)
@@ -62,10 +67,10 @@ func performQueryWithDbSpan(
 	}
 
 	ctx, dbSpan := (*parentSpan).TracerProvider().
-		Tracer(appName).
+		Tracer(SERVER).
 		Start(
 			r.Context(),
-			dbOperation+" "+mysqlDatabase+"."+mysqlTable,
+			dbOperation+" "+config.GetConfig().MysqlDatabase+"."+config.GetConfig().MysqlTable,
 			trace.WithSpanKind(trace.SpanKindClient),
 		)
 	defer dbSpan.End()
@@ -90,7 +95,7 @@ func performQueryWithDbSpan(
 	databaseConnectionError := r.URL.Query().Get("databaseConnectionError")
 	if databaseConnectionError == "true" {
 		msg := "Connection to database is lost."
-		log(logrus.ErrorLevel, ctx, getUser(r), msg)
+		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
 
 		// Add status code
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OtelStatusCodeError)
@@ -110,7 +115,7 @@ func createDbQuery(
 	string,
 	error,
 ) {
-	log(logrus.InfoLevel, r.Context(), getUser(r), "Building query...")
+	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Building query...")
 
 	var dbOperation string
 	var dbStatement string
@@ -124,18 +129,18 @@ func createDbQuery(
 		if tableDoesNotExistError == "true" {
 			dbStatement = dbOperation + " name FROM " + "faketable"
 		} else {
-			dbStatement = dbOperation + " name FROM " + mysqlTable
+			dbStatement = dbOperation + " name FROM " + config.GetConfig().MysqlTable
 		}
 		return dbOperation, dbStatement, nil
 	case http.MethodDelete:
 		dbOperation = "DELETE"
-		dbStatement = dbOperation + " FROM " + mysqlTable
+		dbStatement = dbOperation + " FROM " + config.GetConfig().MysqlTable
 	default:
-		log(logrus.ErrorLevel, r.Context(), getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, r.Context(), getUser(r), "Method is not allowed.")
 		return "", "", errors.New("method not allowed")
 	}
 
-	log(logrus.InfoLevel, r.Context(), getUser(r), "Query is built.")
+	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Query is built.")
 	return dbOperation, dbStatement, nil
 }
 
@@ -145,15 +150,15 @@ func executeDbQuery(
 	dbStatement string,
 ) error {
 
-	log(logrus.InfoLevel, ctx, getUser(r), "Executing query...")
+	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Executing query...")
 
 	user := getUser(r)
 	switch r.Method {
 	case http.MethodGet:
 		// Perform a query
-		rows, err := db.Query(dbStatement)
+		rows, err := mysql.Get().Query(dbStatement)
 		if err != nil {
-			log(logrus.ErrorLevel, ctx, user, err.Error())
+			logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 			return err
 		}
 		defer rows.Close()
@@ -164,7 +169,7 @@ func executeDbQuery(
 			var name string
 			err = rows.Scan(&name)
 			if err != nil {
-				log(logrus.ErrorLevel, ctx, user, err.Error())
+				logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 				return err
 			}
 			names = append(names, name)
@@ -172,21 +177,21 @@ func executeDbQuery(
 
 		_, err = json.Marshal(names)
 		if err != nil {
-			log(logrus.ErrorLevel, ctx, user, err.Error())
+			logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 			return err
 		}
 	case http.MethodDelete:
-		_, err := db.Exec(dbStatement)
+		_, err := mysql.Get().Exec(dbStatement)
 		if err != nil {
-			log(logrus.ErrorLevel, ctx, user, err.Error())
+			logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 			return err
 		}
 	default:
-		log(logrus.ErrorLevel, ctx, getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, ctx, getUser(r), "Method is not allowed.")
 		return errors.New("method not allowed")
 	}
 
-	log(logrus.InfoLevel, ctx, getUser(r), "Query is executed.")
+	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Query is executed.")
 	return nil
 }
 
@@ -208,12 +213,12 @@ func createHttpResponse(
 func getCommonDbSpanAttributes() []attribute.KeyValue {
 	return []attribute.KeyValue{
 		semconv.DBSystemMySQL,
-		semconv.DBUser(mysqlUsername),
-		semconv.NetPeerName(mysqlServer),
-		semconv.NetPeerPort(mysqlPort),
+		semconv.DBUser(config.GetConfig().MysqlUsername),
+		semconv.NetPeerName(config.GetConfig().MysqlServer),
+		semconv.NetPeerPort(int(config.GetConfig().MysqlPort)),
 		semconv.NetTransportTCP,
-		semconv.DBName(mysqlDatabase),
-		semconv.DBSQLTable(mysqlTable),
+		semconv.DBName(config.GetConfig().MysqlDatabase),
+		semconv.DBSQLTable(config.GetConfig().MysqlTable),
 	}
 }
 
@@ -222,7 +227,7 @@ func performPostprocessing(
 	parentSpan *trace.Span,
 ) {
 	ctx, processingSpan := (*parentSpan).TracerProvider().
-		Tracer(appName).
+		Tracer(SERVER).
 		Start(
 			r.Context(),
 			"postprocessing",
@@ -237,16 +242,16 @@ func produceSchemaNotFoundInCacheWarning(
 	ctx context.Context,
 	r *http.Request,
 ) {
-	log(logrus.InfoLevel, ctx, getUser(r), "Postprocessing...")
+	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Postprocessing...")
 	schemaNotFoundInCacheWarning := r.URL.Query().Get("schemaNotFoundInCacheWarning")
 	if schemaNotFoundInCacheWarning == "true" {
 		user := getUser(r)
-		log(logrus.WarnLevel, ctx, user, "Processing schema not found in cache. Calculating from scratch.")
+		logger.Log(logrus.WarnLevel, ctx, user, "Processing schema not found in cache. Calculating from scratch.")
 		time.Sleep(time.Millisecond * 500)
 	} else {
 		time.Sleep(time.Millisecond * 10)
 	}
-	log(logrus.InfoLevel, r.Context(), getUser(r), "Postprocessing is complete.")
+	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Postprocessing is complete.")
 }
 
 func getUser(

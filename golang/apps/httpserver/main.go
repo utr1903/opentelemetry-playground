@@ -3,54 +3,41 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
-	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/config"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/server"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-)
-
-var (
-	appName string
-	appPort string
 )
 
 func main() {
 
-	// Parse arguments and feature flags
-	parseFlags()
+	// Parse simulator parameters
+	config.NewConfig()
+	cfg := config.GetConfig()
 
 	// Initialize logger
-	initLogger()
+	logger.NewLogger(cfg)
 
 	// Get context
 	ctx := context.Background()
 
 	// Create tracer provider
-	tp := newTraceProvider(ctx)
-	defer shutdownTraceProvider(ctx, tp)
+	tp := otel.NewTraceProvider(ctx)
+	defer otel.ShutdownTraceProvider(ctx, tp)
 
 	// Create metric provider
-	mp := newMetricProvider(ctx)
-	defer shutdownMetricProvider(ctx, mp)
+	mp := otel.NewMetricProvider(ctx)
+	defer otel.ShutdownMetricProvider(ctx, mp)
 
 	// Connect to MySQL
-	db = createDatabaseConnection()
-	defer db.Close()
+	mysql.CreateDatabaseConnection(cfg)
+	defer mysql.Get().Close()
 
 	// Serve
-	http.Handle("/api", otelhttp.NewHandler(http.HandlerFunc(handler), "api"))
-	http.ListenAndServe(":"+appPort, nil)
-}
-
-func parseFlags() {
-	appName = os.Getenv("APP_NAME")
-	appPort = os.Getenv("APP_PORT")
-
-	mysqlServer = os.Getenv("MYSQL_SERVER")
-	mysqlUsername = os.Getenv("MYSQL_USERNAME")
-	mysqlPassword = os.Getenv("MYSQL_PASSWORD")
-	mysqlDatabase = os.Getenv("MYSQL_DATABASE")
-	mysqlTable = os.Getenv("MYSQL_TABLE")
-	mysqlPort, _ = strconv.Atoi(os.Getenv("MYSQL_PORT"))
+	http.Handle("/api", otelhttp.NewHandler(http.HandlerFunc(server.Handler), "api"))
+	http.ListenAndServe(":"+cfg.ServicePort, nil)
 }
