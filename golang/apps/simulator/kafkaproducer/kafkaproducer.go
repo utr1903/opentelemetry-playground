@@ -3,22 +3,29 @@ package kafkaproducer
 import (
 	"context"
 	"fmt"
-	"os"
+	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/config"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
 	"go.opentelemetry.io/otel"
 )
 
 var (
-	kafkaRequestInterval = os.Getenv("KAFKA_REQUEST_INTERVAL")
-	kafkaBrokerAddress   = os.Getenv("KAFKA_BROKER_ADDRESS")
-	kafkaTopic           = os.Getenv("KAFKA_TOPIC")
+	kafkaRequestInterval string
+	kafkaBrokerAddress   string
+	kafkaTopic           string
+
+	randomizer *rand.Rand
 )
 
-func SimulateKafka() {
+func SimulateKafka(
+	cfg *config.SimulatorConfig,
+) {
+
+	initSimulator(cfg)
 
 	interval, err := strconv.ParseInt(kafkaRequestInterval, 10, 64)
 	if err != nil {
@@ -41,10 +48,13 @@ func SimulateKafka() {
 			// Make request after each interval
 			time.Sleep(time.Duration(interval) * time.Millisecond)
 
+			// Get a random name
+			name := cfg.Users[randomizer.Intn(len(cfg.Users))]
+
 			// Create message
 			msg := sarama.ProducerMessage{
 				Topic: kafkaTopic,
-				Value: sarama.ByteEncoder([]byte("dummy-name")),
+				Value: sarama.ByteEncoder([]byte(name)),
 			}
 
 			// Inject tracing info into message
@@ -56,6 +66,23 @@ func SimulateKafka() {
 			<-producer.Successes()
 		}
 	}()
+}
+
+func initSimulator(
+	cfg *config.SimulatorConfig,
+) {
+	// Set Kafka producer related parameters
+	setKafkaParameters(cfg)
+
+	// Initialize random number generator
+	randomizer = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+func setKafkaParameters(
+	cfg *config.SimulatorConfig,
+) {
+	kafkaRequestInterval = cfg.KafkaRequestInterval
+	kafkaBrokerAddress = cfg.KafkaBrokerAddress
+	kafkaTopic = cfg.KafkaTopic
 }
 
 func createKafkaTopic() {
