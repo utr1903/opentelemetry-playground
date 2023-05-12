@@ -4,14 +4,15 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var (
-	appName = os.Getenv("APP_NAME")
-	appPort = os.Getenv("APP_PORT")
+	appName string
+	appPort string
 )
 
 func main() {
@@ -45,4 +46,11 @@ func main() {
 func parseFlags() {
 	appName = os.Getenv("APP_NAME")
 	appPort = os.Getenv("APP_PORT")
+
+	mysqlServer = os.Getenv("MYSQL_SERVER")
+	mysqlUsername = os.Getenv("MYSQL_USERNAME")
+	mysqlPassword = os.Getenv("MYSQL_PASSWORD")
+	mysqlDatabase = os.Getenv("MYSQL_DATABASE")
+	mysqlTable = os.Getenv("MYSQL_TABLE")
+	mysqlPort, _ = strconv.Atoi(os.Getenv("MYSQL_PORT"))
 }

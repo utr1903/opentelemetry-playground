@@ -72,14 +72,14 @@ func performQueryWithDbSpan(
 
 	// Set additional span attributes
 	dbSpanAttrs := getCommonDbSpanAttributes()
-	dbSpanAttrs = append(dbSpanAttrs, attribute.String("db.operation", dbOperation))
-	dbSpanAttrs = append(dbSpanAttrs, attribute.String("db.statement", dbStatement))
+	dbSpanAttrs = append(dbSpanAttrs, semconv.DBOperation(dbOperation))
+	dbSpanAttrs = append(dbSpanAttrs, semconv.DBStatement(dbStatement))
 
 	// Perform query
 	err = executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, attribute.String("otel.status_code", "ERROR"))
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
@@ -93,7 +93,7 @@ func performQueryWithDbSpan(
 		log(logrus.ErrorLevel, ctx, getUser(r), msg)
 
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, attribute.String("otel.status_code", "ERROR"))
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
@@ -237,13 +237,13 @@ func createHttpResponse(
 
 func getCommonDbSpanAttributes() []attribute.KeyValue {
 	return []attribute.KeyValue{
-		attribute.String("db.system", "mysql"),
-		attribute.String("db.user", mysqlUsername),
-		attribute.String("net.peer.name", mysqlServer),
-		attribute.String("net.peer.port", mysqlPort),
-		attribute.String("net.transport", "IP.TCP"),
-		attribute.String("db.name", mysqlDatabase),
-		attribute.String("db.sql.table", mysqlTable),
+		semconv.DBSystemMySQL,
+		semconv.DBUser(mysqlUsername),
+		semconv.NetPeerName(mysqlServer),
+		semconv.NetPeerPort(mysqlPort),
+		semconv.NetTransportTCP,
+		semconv.DBName(mysqlDatabase),
+		semconv.DBSQLTable(mysqlTable),
 	}
 }
 

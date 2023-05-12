@@ -3,23 +3,23 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"os"
+	"strconv"
 )
 
 var (
-	mysqlServer   = os.Getenv("MYSQL_SERVER")
-	mysqlUsername = os.Getenv("MYSQL_USERNAME")
-	mysqlPassword = os.Getenv("MYSQL_PASSWORD")
-	mysqlDatabase = os.Getenv("MYSQL_DATABASE")
-	mysqlTable    = os.Getenv("MYSQL_TABLE")
-	mysqlPort     = os.Getenv("MYSQL_PORT")
+	mysqlServer   string
+	mysqlUsername string
+	mysqlPassword string
+	mysqlDatabase string
+	mysqlTable    string
+	mysqlPort     int
 
 	db *sql.DB
 )
 
 func createDatabaseConnection() *sql.DB {
 	// Connect to MySQL
-	datasourceName := mysqlUsername + ":" + mysqlPassword + "@tcp(" + mysqlServer + ":" + mysqlPort + ")/"
+	datasourceName := mysqlUsername + ":" + mysqlPassword + "@tcp(" + mysqlServer + ":" + strconv.Itoa(mysqlPort) + ")/"
 	db, err := sql.Open("mysql", datasourceName)
 	if err != nil {
 		panic(err)
