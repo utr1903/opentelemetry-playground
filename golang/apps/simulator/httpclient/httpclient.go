@@ -34,6 +34,13 @@ var (
 	httpClient *http.Client
 
 	httpClientDuration metric.Float64Histogram
+
+	randomErrors = map[int]string{
+		1: "databaseConnectionError",
+		2: "tableDoesNotExistError",
+		3: "preprocessingException",
+		4: "schemaNotFoundInCacheWarning",
+	}
 )
 
 func SimulateHttpServer(
@@ -55,7 +62,7 @@ func SimulateHttpServer(
 				context.Background(),
 				http.MethodGet,
 				cfg.Users[randomizer.Intn(len(cfg.Users))],
-				map[string]string{},
+				causeRandomError(),
 			)
 		}
 	}()
@@ -72,7 +79,7 @@ func SimulateHttpServer(
 				context.Background(),
 				http.MethodDelete,
 				cfg.Users[randomizer.Intn(len(cfg.Users))],
-				map[string]string{},
+				causeRandomError(),
 			)
 		}
 	}()
@@ -126,6 +133,18 @@ func createHttpClientDurationMetric() {
 	}
 
 	httpClientDuration = meter
+}
+
+func causeRandomError() map[string]string {
+
+	randomNum := randomizer.Intn(15)
+	reqParams := map[string]string{}
+
+	if randomNum == 1 || randomNum == 2 || randomNum == 3 || randomNum == 4 {
+		reqParams[randomErrors[randomNum]] = "true"
+	}
+
+	return reqParams
 }
 
 func performHttpCall(
