@@ -4,8 +4,10 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 )
 
 var (
@@ -24,6 +26,12 @@ func main() {
 	// Create metric provider
 	mp := newMetricProvider(ctx)
 	defer shutdownMetricProvider(ctx, mp)
+
+	// Start runtime metric collection
+	err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
+	if err != nil {
+		panic(err)
+	}
 
 	// Connect to MySQL
 	db = createDatabaseConnection()
