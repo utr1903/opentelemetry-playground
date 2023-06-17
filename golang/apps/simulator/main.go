@@ -4,12 +4,14 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/config"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/httpclient"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/kafkaproducer"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 )
 
 func main() {
@@ -29,6 +31,12 @@ func main() {
 	// Create metric provider
 	mp := otel.NewMetricProvider(ctx)
 	defer otel.ShutdownMetricProvider(ctx, mp)
+
+	// Start runtime metric collection
+	err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
+	if err != nil {
+		panic(err)
+	}
 
 	// Simulate
 	go httpclient.SimulateHttpServer(cfg)
