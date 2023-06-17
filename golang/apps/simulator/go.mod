@@ -1,6 +1,6 @@
 module github.com/utr1903/opentelemetry-playground/golang/apps/simulator
 
-go 1.18
+go 1.20
 
 require (
 	github.com/Shopify/sarama v1.38.1
