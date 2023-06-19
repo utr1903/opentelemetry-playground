@@ -36,7 +36,7 @@ import io.opentelemetry.semconv.trace.attributes.SemanticAttributes.OtelStatusCo
 @Component
 public class KafkaProducer implements CommandLineRunner {
 
-  private final Logger logger = LoggerFactory.getLogger(HttpClient.class);
+  private final Logger logger = LoggerFactory.getLogger(KafkaProducer.class);
 
   private org.apache.kafka.clients.producer.KafkaProducer<String, String> producer;
   private Tracer tracer;
@@ -59,7 +59,7 @@ public class KafkaProducer implements CommandLineRunner {
 
   public KafkaProducer(OpenTelemetry openTelemetry) {
     // Initialize tracer
-    tracer = openTelemetry.getTracer(HttpClient.class.getName());
+    tracer = openTelemetry.getTracer(KafkaProducer.class.getName());
 
     // Initialize propagator
     propagator = openTelemetry.getPropagators().getTextMapPropagator();
