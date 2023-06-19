@@ -108,15 +108,12 @@ if [[ $build == "true" ]]; then
     "../../${language}/apps/httpserver/."
   docker push "${DOCKERHUB_NAME}/${httpserver[imageName]}"
 
-  # kafkaconsumer is only available in golang
-  if [[ $language == "golang" ]]; then
-    # kafkaconsumer
-    docker build \
-      --platform "linux/${platform}" \
-      --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
-      "../../${language}/apps/kafkaconsumer/."
-    docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
-  fi
+  # kafkaconsumer
+  docker build \
+    --platform "linux/${platform}" \
+    --tag "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}" \
+    "../../${language}/apps/kafkaconsumer/."
+  docker push "${DOCKERHUB_NAME}/${kafkaconsumer[imageName]}"
 
   # simulator
   docker build \
@@ -225,34 +222,30 @@ helm upgrade ${httpserver[name]} \
   --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
   "../helm/httpserver"
 
-# kafkaconsumer is only available in golang
-if [[ $language == "golang" ]]; then
-
-  # kafkaconsumer
-  helm upgrade ${kafkaconsumer[name]} \
-    --install \
-    --wait \
-    --debug \
-    --create-namespace \
-    --namespace=${kafkaconsumer[namespace]} \
-    --set dockerhubName=$DOCKERHUB_NAME \
-    --set imageName=${kafkaconsumer[imageName]} \
-    --set imagePullPolicy="Always" \
-    --set name=${kafkaconsumer[name]} \
-    --set replicas=${kafkaconsumer[replicas]} \
-    --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
-    --set kafka.topic=${kafka[topic]} \
-    --set kafka.groupId=${kafkaconsumer[name]} \
-    --set mysql.server="${mysql[name]}.${mysql[namespace]}.svc.cluster.local" \
-    --set mysql.username=${mysql[username]} \
-    --set mysql.password=${mysql[password]} \
-    --set mysql.port=${mysql[port]} \
-    --set mysql.database=${mysql[database]} \
-    --set mysql.table=${mysql[table]} \
-    --set otel.exporter="otlp" \
-    --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
-    "../helm/kafkaconsumer"
-fi
+# kafkaconsumer
+helm upgrade ${kafkaconsumer[name]} \
+  --install \
+  --wait \
+  --debug \
+  --create-namespace \
+  --namespace=${kafkaconsumer[namespace]} \
+  --set dockerhubName=$DOCKERHUB_NAME \
+  --set imageName=${kafkaconsumer[imageName]} \
+  --set imagePullPolicy="Always" \
+  --set name=${kafkaconsumer[name]} \
+  --set replicas=${kafkaconsumer[replicas]} \
+  --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
+  --set kafka.topic=${kafka[topic]} \
+  --set kafka.groupId=${kafkaconsumer[name]} \
+  --set mysql.server="${mysql[name]}.${mysql[namespace]}.svc.cluster.local" \
+  --set mysql.username=${mysql[username]} \
+  --set mysql.password=${mysql[password]} \
+  --set mysql.port=${mysql[port]} \
+  --set mysql.database=${mysql[database]} \
+  --set mysql.table=${mysql[table]} \
+  --set otel.exporter="otlp" \
+  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  "../helm/kafkaconsumer"
 
 # simulator
 helm upgrade ${simulator[name]} \
