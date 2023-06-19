@@ -8,13 +8,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
-import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,30 +21,16 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanKind;
-import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Context;
-import io.opentelemetry.context.Scope;
-import io.opentelemetry.context.propagation.TextMapPropagator;
-import io.opentelemetry.context.propagation.TextMapSetter;
-import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
-import io.opentelemetry.semconv.trace.attributes.SemanticAttributes.OtelStatusCodeValues;
+import io.opentelemetry.instrumentation.kafkaclients.v2_6.KafkaTelemetry;
+import io.opentelemetry.instrumentation.kafkaclients.v2_6.TracingProducerInterceptor;
 
 @Component
 public class KafkaProducer implements CommandLineRunner {
 
   private final Logger logger = LoggerFactory.getLogger(KafkaProducer.class);
 
-  private org.apache.kafka.clients.producer.KafkaProducer<String, String> producer;
-  private Tracer tracer;
-  private TextMapPropagator propagator;
-  private TextMapSetter<Headers> setter = new TextMapSetter<Headers>() {
-    @Override
-    public void set(Headers carrier, String key, String value) {
-      carrier.add(key, value.getBytes());
-    }
-  };
+  private Producer<String, String> producer;
+  private OpenTelemetry openTelemetry;
 
   @Value(value = "${KAFKA_BROKER_ADDRESS}")
   private String kafkaBrokerAddress;
@@ -58,15 +42,15 @@ public class KafkaProducer implements CommandLineRunner {
   private int kafkaRequestInterval;
 
   public KafkaProducer(OpenTelemetry openTelemetry) {
-    // Initialize tracer
-    tracer = openTelemetry.getTracer(KafkaProducer.class.getName());
-
-    // Initialize propagator
-    propagator = openTelemetry.getPropagators().getTextMapPropagator();
+    this.openTelemetry = openTelemetry;
   }
 
   @Override
   public void run(String... args) throws Exception {
+
+    // Create Kafka topic if not exists
+    createKafkaTopicIfNotExists();
+
     // Create Kafka producer
     createKafkaProducer();
 
@@ -78,19 +62,12 @@ public class KafkaProducer implements CommandLineRunner {
         TimeUnit.MILLISECONDS);
   }
 
-  private void createKafkaProducer() throws Exception {
-
+  private void createKafkaTopicIfNotExists() throws Exception {
     // Create Kafka properties
     Properties properties = new Properties();
     properties.put(
         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
         kafkaBrokerAddress);
-    properties.put(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-        StringSerializer.class);
-    properties.put(
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-        StringSerializer.class);
 
     // Create the admin client
     try (AdminClient adminClient = AdminClient.create(properties)) {
@@ -116,60 +93,48 @@ public class KafkaProducer implements CommandLineRunner {
       logger.error(e.getMessage(), e);
       throw new Exception(msg);
     }
+  }
+
+  private void createKafkaProducer() throws Exception {
+
+    // Create Kafka properties
+    Properties properties = new Properties();
+    properties.put(
+        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+        kafkaBrokerAddress);
+    properties.put(
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+        StringSerializer.class);
+    properties.put(
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+        StringSerializer.class);
+    properties.put(
+        ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
+        TracingProducerInterceptor.class.getName());
 
     // Create the KafkaProducer
     logger.info("Creating Kafka producer...");
-    producer = new org.apache.kafka.clients.producer.KafkaProducer<>(properties);
+    org.apache.kafka.clients.producer.KafkaProducer<String, String> kafkaProducer = new org.apache.kafka.clients.producer.KafkaProducer<>(
+        properties);
     logger.info("Kafka producer is created.");
+
+    KafkaTelemetry telemetry = KafkaTelemetry.create(openTelemetry);
+    producer = telemetry.wrap(kafkaProducer);
+    logger.info("Kafka producer is wrapped with OTel.");
   }
 
   private void create() {
-    Span span = tracer.spanBuilder(kafkaTopic + " send").setSpanKind(SpanKind.PRODUCER).startSpan();
-
-    // Make the span the current span
-    try (Scope scope = span.makeCurrent()) {
-
-      // Set common span attributes
-      setCommonSpanAttributes(span);
-
-      // Inject trace context into the Kafka headers
-      Context currentContext = Context.current();
-      Headers headers = new RecordHeaders();
-      propagator.inject(currentContext, headers, setter);
-
+    try {
       // Create the ProducerRecord with the topic and message
-      ProducerRecord<String, String> record = new ProducerRecord<>(kafkaTopic, null, null, "HELLO", headers);
+      ProducerRecord<String, String> record = new ProducerRecord<>(kafkaTopic, "HELLO");
 
       // Send the record to the topic
       logger.info("Message is being sent to '" + kafkaTopic + "'...");
-      producer.send(record, new Callback() {
-        @Override
-        public void onCompletion(RecordMetadata metadata, Exception exception) {
-          span.setAttribute(SemanticAttributes.MESSAGING_KAFKA_DESTINATION_PARTITION, metadata.partition());
-        }
-      });
-
+      producer.send(record);
       logger.info("Message is published successfully to '" + kafkaTopic + "'!");
+
     } catch (Exception e) {
-      setExceptionSpanAttributes(span, e);
       logger.error(e.getMessage(), e);
-    } finally {
-      span.end();
     }
-  }
-
-  private void setCommonSpanAttributes(Span span) {
-    span.setAttribute(SemanticAttributes.MESSAGING_SYSTEM, "kafka");
-    span.setAttribute(SemanticAttributes.MESSAGING_DESTINATION_KIND, "topic");
-    span.setAttribute(SemanticAttributes.MESSAGING_DESTINATION_NAME, kafkaTopic);
-    span.setAttribute(SemanticAttributes.MESSAGING_OPERATION, "send");
-    span.setAttribute(SemanticAttributes.NET_PEER_NAME, kafkaBrokerAddress);
-    span.setAttribute(SemanticAttributes.NET_PEER_PORT, Integer.parseInt("9092"));
-  }
-
-  private void setExceptionSpanAttributes(Span span, Exception e) {
-    span.setAttribute(SemanticAttributes.OTEL_STATUS_CODE, OtelStatusCodeValues.ERROR);
-    span.setAttribute(SemanticAttributes.EXCEPTION_MESSAGE, e.getMessage());
-    span.setAttribute(SemanticAttributes.EXCEPTION_STACKTRACE, e.getStackTrace().toString());
   }
 }
