@@ -13,6 +13,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +26,10 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes.OtelStatusCodeValues;
 
@@ -37,6 +41,12 @@ public class KafkaProducer implements CommandLineRunner {
   private org.apache.kafka.clients.producer.KafkaProducer<String, String> producer;
   private Tracer tracer;
   private TextMapPropagator propagator;
+  private TextMapSetter<Headers> setter = new TextMapSetter<Headers>() {
+    @Override
+    public void set(Headers carrier, String key, String value) {
+      carrier.add(key, value.getBytes());
+    }
+  };
 
   @Value(value = "${KAFKA_BROKER_ADDRESS}")
   private String kafkaBrokerAddress;
@@ -68,7 +78,7 @@ public class KafkaProducer implements CommandLineRunner {
         TimeUnit.MILLISECONDS);
   }
 
-  private void createKafkaProducer() {
+  private void createKafkaProducer() throws Exception {
 
     // Create Kafka properties
     Properties properties = new Properties();
@@ -101,7 +111,10 @@ public class KafkaProducer implements CommandLineRunner {
         logger.info("Kafka topic already exists.");
       }
     } catch (InterruptedException | ExecutionException | UnknownTopicOrPartitionException e) {
-      logger.error("Kafka topic could not be found or created!");
+      String msg = "Kafka topic could not be found or created!";
+      logger.error(msg);
+      logger.error(e.getMessage(), e);
+      throw new Exception(msg);
     }
 
     // Create the KafkaProducer
@@ -119,13 +132,17 @@ public class KafkaProducer implements CommandLineRunner {
       // Set common span attributes
       setCommonSpanAttributes(span);
 
+      // Inject trace context into the Kafka headers
+      Context currentContext = Context.current();
+      Headers headers = new RecordHeaders();
+      propagator.inject(currentContext, headers, setter);
+
       // Create the ProducerRecord with the topic and message
-      ProducerRecord<String, String> record = new ProducerRecord<>(kafkaTopic, "HELLO");
+      ProducerRecord<String, String> record = new ProducerRecord<>(kafkaTopic, null, null, "HELLO", headers);
 
       // Send the record to the topic
       logger.info("Message is being sent to '" + kafkaTopic + "'...");
       producer.send(record, new Callback() {
-
         @Override
         public void onCompletion(RecordMetadata metadata, Exception exception) {
           span.setAttribute(SemanticAttributes.MESSAGING_KAFKA_DESTINATION_PARTITION, metadata.partition());
