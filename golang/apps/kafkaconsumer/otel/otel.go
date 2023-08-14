@@ -1,4 +1,4 @@
-package main
+package otel
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -20,7 +19,7 @@ import (
 
 var otelExporterType = os.Getenv("OTEL_EXPORTER_TYPE")
 
-func newTraceProvider(
+func NewTraceProvider(
 	ctx context.Context,
 ) *sdktrace.TracerProvider {
 
@@ -72,7 +71,7 @@ func newTraceProvider(
 	return tp
 }
 
-func shutdownTraceProvider(
+func ShutdownTraceProvider(
 	ctx context.Context,
 	tp *sdktrace.TracerProvider,
 ) {
@@ -84,7 +83,7 @@ func shutdownTraceProvider(
 	}
 }
 
-func newMetricProvider(
+func NewMetricProvider(
 	ctx context.Context,
 ) *sdkmetric.MeterProvider {
 	var exp sdkmetric.Exporter
@@ -102,11 +101,11 @@ func newMetricProvider(
 	}
 
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
-	global.SetMeterProvider(mp)
+	otel.SetMeterProvider(mp)
 	return mp
 }
 
-func shutdownMetricProvider(
+func ShutdownMetricProvider(
 	ctx context.Context,
 	mp *sdkmetric.MeterProvider,
 ) {
