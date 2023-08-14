@@ -13,7 +13,7 @@ import (
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -74,7 +74,7 @@ func performQuery(
 	err = executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OtelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
@@ -88,7 +88,7 @@ func performQuery(
 		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
 
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OtelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpan.SetAttributes(dbSpanAttrs...)
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
