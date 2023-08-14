@@ -136,8 +136,11 @@ func storeIntoDb(
 
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
-		dbSpanAttrs = append(dbSpanAttrs, semconv.ExceptionMessage(err.Error()))
 		dbSpan.SetAttributes(dbSpanAttrs...)
+
+		dbSpan.RecordError(err, trace.WithAttributes(
+			semconv.ExceptionEscaped(true),
+		))
 
 		return err
 	}
@@ -151,8 +154,11 @@ func storeIntoDb(
 
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
-		dbSpanAttrs = append(dbSpanAttrs, semconv.ExceptionMessage(err.Error()))
 		dbSpan.SetAttributes(dbSpanAttrs...)
+
+		dbSpan.RecordError(err, trace.WithAttributes(
+			semconv.ExceptionEscaped(true),
+		))
 
 		return err
 	}

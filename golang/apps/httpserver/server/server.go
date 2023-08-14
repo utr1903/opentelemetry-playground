@@ -73,9 +73,17 @@ func performQuery(
 	// Perform query
 	err = executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
+		msg := "Executing DB query is failed."
+		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
+
 		// Add status code
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
 		dbSpan.SetAttributes(dbSpanAttrs...)
+
+		dbSpan.RecordError(err, trace.WithAttributes(
+			semconv.ExceptionEscaped(true),
+		))
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
 		return err
@@ -89,7 +97,12 @@ func performQuery(
 
 		// Add status code
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
+		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
 		dbSpan.SetAttributes(dbSpanAttrs...)
+
+		dbSpan.RecordError(err, trace.WithAttributes(
+			semconv.ExceptionEscaped(true),
+		))
 
 		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
