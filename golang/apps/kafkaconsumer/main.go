@@ -7,25 +7,29 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/config"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/consumer"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/mysql"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/otel"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 )
 
-var (
-	appName = os.Getenv("APP_NAME")
-)
-
 func main() {
+
+	// Create new config
+	config.NewConfig()
+	cfg := config.GetConfig()
 
 	// Get context
 	ctx := context.Background()
 
 	// Create tracer provider
-	tp := newTraceProvider(ctx)
-	defer shutdownTraceProvider(ctx, tp)
+	tp := otel.NewTraceProvider(ctx)
+	defer otel.ShutdownTraceProvider(ctx, tp)
 
 	// Create metric provider
-	mp := newMetricProvider(ctx)
-	defer shutdownMetricProvider(ctx, mp)
+	mp := otel.NewMetricProvider(ctx)
+	defer otel.ShutdownMetricProvider(ctx, mp)
 
 	// Start runtime metric collection
 	err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
@@ -34,12 +38,12 @@ func main() {
 	}
 
 	// Connect to MySQL
-	db = createDatabaseConnection()
-	defer db.Close()
+	mysql.CreateDatabaseConnection(cfg)
+	defer mysql.Get().Close()
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	if err := startConsumerGroup(ctx); err != nil {
+	if err := consumer.StartConsumerGroup(ctx, cfg); err != nil {
 		panic(err.Error())
 	}
 
