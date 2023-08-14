@@ -158,7 +158,10 @@ public class HttpClient implements CommandLineRunner {
     }
   }
 
-  private void setCommonSpanAttributes(Span span, HttpMethod httpMethod, String url) {
+  private void setCommonSpanAttributes(
+      Span span,
+      HttpMethod httpMethod,
+      String url) {
     span.setAttribute(SemanticAttributes.HTTP_METHOD, httpMethod.toString());
     span.setAttribute(SemanticAttributes.HTTP_FLAVOR, HttpFlavorValues.HTTP_1_1.toString());
     span.setAttribute(SemanticAttributes.HTTP_SCHEME, "http");
@@ -167,13 +170,20 @@ public class HttpClient implements CommandLineRunner {
     span.setAttribute(SemanticAttributes.NET_PEER_PORT, Integer.parseInt(httpserverPort));
   }
 
-  private void setExceptionSpanAttributes(Span span, Exception e) {
+  private void setExceptionSpanAttributes(
+      Span span,
+      Exception e) {
     span.setAttribute(SemanticAttributes.OTEL_STATUS_CODE, OtelStatusCodeValues.ERROR);
-    span.setAttribute(SemanticAttributes.EXCEPTION_MESSAGE, e.getMessage());
-    span.setAttribute(SemanticAttributes.EXCEPTION_STACKTRACE, e.getStackTrace().toString());
+    span.setAttribute(SemanticAttributes.OTEL_STATUS_DESCRIPTION, e.getMessage());
+
+    span.recordException(e, Attributes.of(SemanticAttributes.EXCEPTION_ESCAPED, true));
   }
 
-  private void recordHttpClientDuration(long startTime, HttpMethod httpMethod, String url, int httpStatus) {
+  private void recordHttpClientDuration(
+      long startTime,
+      HttpMethod httpMethod,
+      String url,
+      int httpStatus) {
     long duration = System.currentTimeMillis() - startTime;
     Attributes attrs = Attributes.builder()
         .put(SemanticAttributes.HTTP_METHOD.toString(), httpMethod.toString())

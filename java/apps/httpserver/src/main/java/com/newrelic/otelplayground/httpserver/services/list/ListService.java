@@ -15,6 +15,7 @@ import com.newrelic.otelplayground.httpserver.entities.Name;
 import com.newrelic.otelplayground.httpserver.repositories.NameRepository;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
@@ -106,7 +107,9 @@ public class ListService {
         statusCode);
   }
 
-  private void setCommonSpanAttributes(Span span, String dbStatement) {
+  private void setCommonSpanAttributes(
+      Span span,
+      String dbStatement) {
     span.setAttribute(SemanticAttributes.DB_SYSTEM, "mysql");
     span.setAttribute(SemanticAttributes.DB_USER, mysqlUser);
     span.setAttribute(SemanticAttributes.DB_NAME, mysqlDatabase);
@@ -118,9 +121,12 @@ public class ListService {
     span.setAttribute(SemanticAttributes.DB_STATEMENT, dbStatement);
   }
 
-  private void setExceptionSpanAttributes(Span span, Exception e) {
+  private void setExceptionSpanAttributes(
+      Span span,
+      Exception e) {
     span.setAttribute(SemanticAttributes.OTEL_STATUS_CODE, OtelStatusCodeValues.ERROR);
-    span.setAttribute(SemanticAttributes.EXCEPTION_MESSAGE, e.getMessage());
-    span.setAttribute(SemanticAttributes.EXCEPTION_STACKTRACE, e.getStackTrace().toString());
+    span.setAttribute(SemanticAttributes.OTEL_STATUS_DESCRIPTION, e.getMessage());
+
+    span.recordException(e, Attributes.of(SemanticAttributes.EXCEPTION_ESCAPED, true));
   }
 }
