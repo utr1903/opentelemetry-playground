@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
@@ -130,7 +129,7 @@ func createHttpClient() {
 
 // Creates a histogram metric meter for HTTP client duration
 func createHttpClientDurationMetric() {
-	meter, err := global.MeterProvider().
+	meter, err := otel.GetMeterProvider().
 		Meter(serviceName).
 		Float64Histogram("http.client.duration")
 	if err != nil {
