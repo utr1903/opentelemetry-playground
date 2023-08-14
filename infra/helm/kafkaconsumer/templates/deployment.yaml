@@ -18,6 +18,11 @@ spec:
           image: "{{ .Values.dockerhubName }}/{{ .Values.imageName }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
+            - name: K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
             - name: APP_NAME
               value: {{ .Values.name }}
             - name: KAFKA_BROKER_ADDRESS
@@ -40,6 +45,8 @@ spec:
               value: {{ .Values.mysql.table }}
             - name: OTEL_SERVICE_NAME
               value: {{ .Values.name }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.name=$(OTEL_SERVICE_NAME),service.instance.id=$(K8S_POD_NAME)
             - name: OTEL_EXPORTER_TYPE
               value: {{ .Values.otel.exporter }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
