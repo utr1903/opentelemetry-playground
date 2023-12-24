@@ -49,6 +49,6 @@ kafka:
   # Interval between each request
   requestInterval: "1000"
   # Address
-  address: "kafka-0.kafka-headless.otel.svc.cluster.local:9092"
+  address: "kafka.otel.svc.cluster.local:9092"
   # Topic
   topic: "otel"
