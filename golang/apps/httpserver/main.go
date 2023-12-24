@@ -58,5 +58,7 @@ func main() {
 
 	// Serve
 	http.Handle("/api", otelhttp.NewHandler(http.HandlerFunc(server.Handler), "api"))
+	http.Handle("/livez", http.HandlerFunc(server.Livez))
+	http.Handle("/readyz", http.HandlerFunc(server.Readyz))
 	http.ListenAndServe(":"+cfg.ServicePort, nil)
 }

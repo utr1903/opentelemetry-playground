@@ -31,6 +31,31 @@ func New(
 	}
 }
 
+// Liveness
+func (s *Server) Livez(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+// Readiness
+func (s *Server) Readyz(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	err := s.MySql.Instance.Ping()
+	if err != nil {
+		logger.Log(logrus.ErrorLevel, r.Context(), "", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Not OK"))
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}
+}
+
 // Server handler
 func (s *Server) Handler(
 	w http.ResponseWriter,
