@@ -86,9 +86,9 @@ func WithDatabase(database string) OptFunc {
 }
 
 // Configure MySQL table
-func WithTable(tale string) OptFunc {
+func WithTable(table string) OptFunc {
 	return func(opts *Opts) {
-		opts.Table = tale
+		opts.Table = table
 	}
 }
 
