@@ -38,8 +38,16 @@ func main() {
 		panic(err)
 	}
 
+	// Instantiate HTTP server simulator
+	httpserverSimulator := httpclient.New(
+		httpclient.WithServiceName(cfg.ServiceName),
+		httpclient.WithRequestInterval(cfg.HttpserverRequestInterval),
+		httpclient.WithServerEndpoint(cfg.HttpserverEndpoint),
+		httpclient.WithServerPort(cfg.HttpserverPort),
+	)
+
 	// Simulate
-	go httpclient.SimulateHttpServer(cfg)
+	go httpserverSimulator.SimulateHttpServer(cfg.Users)
 	go kafkaproducer.SimulateKafka(cfg)
 
 	// Wait for signal to shutdown the simulator
