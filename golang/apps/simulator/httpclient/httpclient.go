@@ -121,7 +121,7 @@ func WithServerPort(serverPort string) OptFunc {
 }
 
 // Starts simulating HTTP server
-func (h *HttpServerSimulator) SimulateHttpServer(
+func (h *HttpServerSimulator) Simulate(
 	users []string,
 ) {
 
