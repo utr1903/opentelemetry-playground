@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"strconv"
 )
 
 type HttpServerConfig struct {
@@ -19,18 +18,13 @@ type HttpServerConfig struct {
 	MysqlPassword string
 	MysqlDatabase string
 	MysqlTable    string
-	MysqlPort     int64
+	MysqlPort     string
 }
 
 var cfg *HttpServerConfig
 
 // Creates new config object by parsing environment variables
 func NewConfig() {
-	port, err := strconv.ParseInt(os.Getenv("MYSQL_PORT"), 10, 64)
-	if err != nil {
-		panic(err.Error())
-	}
-
 	cfg = &HttpServerConfig{
 		ServiceName: os.Getenv("OTEL_SERVICE_NAME"),
 		ServicePort: os.Getenv("APP_PORT"),
@@ -40,7 +34,7 @@ func NewConfig() {
 		MysqlPassword: os.Getenv("MYSQL_PASSWORD"),
 		MysqlDatabase: os.Getenv("MYSQL_DATABASE"),
 		MysqlTable:    os.Getenv("MYSQL_TABLE"),
-		MysqlPort:     port,
+		MysqlPort:     os.Getenv("MYSQL_PORT"),
 	}
 }
 

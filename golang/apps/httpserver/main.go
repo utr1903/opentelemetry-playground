@@ -41,9 +41,20 @@ func main() {
 		panic(err)
 	}
 
-	// Connect to MySQL
-	mysql.CreateDatabaseConnection(cfg)
-	defer mysql.Get().Close()
+	// Instantiate MySQL database
+	db := mysql.New(
+		mysql.WithServer(cfg.MysqlServer),
+		mysql.WithPort(cfg.MysqlPort),
+		mysql.WithUsername(cfg.MysqlUsername),
+		mysql.WithPassword(cfg.MysqlPassword),
+		mysql.WithDatabase(cfg.MysqlDatabase),
+		mysql.WithTable(cfg.MysqlTable),
+	)
+	db.CreateDatabaseConnection()
+	defer db.Instance.Close()
+
+	// Instantiate server
+	server := server.New(db)
 
 	// Serve
 	http.Handle("/api", otelhttp.NewHandler(http.HandlerFunc(server.Handler), "api"))
