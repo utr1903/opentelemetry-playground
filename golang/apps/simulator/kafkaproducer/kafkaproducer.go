@@ -1,16 +1,13 @@
 package kafkaproducer
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/config"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
-	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -59,8 +56,8 @@ func SimulateKafka(
 			}
 
 			// Inject tracing info into message
-			ctx := context.Background()
-			otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(&msg))
+			// ctx := context.Background()
+			// otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(&msg))
 
 			// Publish message
 			producer.Input() <- &msg
@@ -156,7 +153,7 @@ func createKafkaProducer() sarama.AsyncProducer {
 	}
 
 	// Wrap producer
-	producer = otelsarama.WrapAsyncProducer(saramaConfig, producer)
+	// producer = otelsarama.WrapAsyncProducer(saramaConfig, producer)
 
 	// Print errors if message publishing goes wrong
 	go func() {
