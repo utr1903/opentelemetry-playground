@@ -3,7 +3,7 @@ package httpclient
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -228,7 +228,7 @@ func (h *HttpServerSimulator) performHttpCall(
 	defer res.Body.Close()
 
 	// Read HTTP response
-	resBody, err := ioutil.ReadAll(res.Body)
+	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 		h.recordClientDuration(ctx, httpMethod, res.StatusCode, requestStartTime)
