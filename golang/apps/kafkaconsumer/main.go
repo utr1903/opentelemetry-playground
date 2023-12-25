@@ -51,7 +51,15 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	if err := consumer.StartConsumerGroup(ctx, cfg); err != nil {
+
+	// Instantiate Kafka consumer
+	kafkaConsumer := consumer.New(db,
+		consumer.WithServiceName(cfg.ServiceName),
+		consumer.WithBrokerAddress(cfg.KafkaBrokerAddress),
+		consumer.WithBrokerTopic(cfg.KafkaTopic),
+		consumer.WithConsumerGroupId(cfg.KafkaGroupId),
+	)
+	if err := kafkaConsumer.StartConsumerGroup(ctx); err != nil {
 		panic(err.Error())
 	}
 
