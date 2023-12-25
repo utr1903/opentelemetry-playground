@@ -2,14 +2,16 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/mysql"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -100,25 +102,25 @@ func (k *KafkaConsumer) StartConsumerGroup(
 	}
 
 	handler := groupHandler{
-		ServiceName: k.Opts.ServiceName,
-		MySql:       k.MySql,
+		Opts:  k.Opts,
+		MySql: k.MySql,
 	}
-	wrappedHandler := otelsarama.WrapConsumerGroupHandler(&handler)
 
 	err = consumerGroup.Consume(
 		ctx,
 		[]string{k.Opts.BrokerTopic},
-		wrappedHandler,
+		&handler,
 	)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 type groupHandler struct {
-	ServiceName string
-	MySql       *mysql.MySqlDatabase
+	Opts  *Opts
+	MySql *mysql.MySqlDatabase
 }
 
 func (g *groupHandler) Setup(_ sarama.ConsumerGroupSession) error {
@@ -135,12 +137,14 @@ func (g *groupHandler) ConsumeClaim(
 ) error {
 	for {
 		select {
-		case message := <-claim.Messages():
+		case msg := <-claim.Messages():
 
-			ctx := session.Context()
+			// Create consumer span (parent)
+			ctx, consumerSpan := g.startConsumerSpan(msg)
+			defer consumerSpan.End()
 
 			// Parse name out of the message
-			name := string(message.Value)
+			name := string(msg.Value)
 
 			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message...")
 
@@ -152,13 +156,47 @@ func (g *groupHandler) ConsumeClaim(
 			}
 
 			// Acknowledge message
-			session.MarkMessage(message, "")
+			session.MarkMessage(msg, "")
 			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is succeeded.")
 
 		case <-session.Context().Done():
 			return nil
 		}
 	}
+}
+
+func (g *groupHandler) startConsumerSpan(
+	msg *sarama.ConsumerMessage,
+) (
+	context.Context,
+	trace.Span,
+) {
+	headers := propagation.MapCarrier{}
+
+	for _, recordHeader := range msg.Headers {
+		headers[string(recordHeader.Key)] = string(recordHeader.Value)
+	}
+
+	propagator := otel.GetTextMapPropagator()
+	ctx := propagator.Extract(context.Background(), headers)
+
+	ctx, span := otel.GetTracerProvider().Tracer(g.Opts.ServiceName).
+		Start(
+			ctx,
+			fmt.Sprintf("%s receive", msg.Topic),
+			trace.WithSpanKind(trace.SpanKindConsumer),
+			trace.WithAttributes(
+				semconv.MessagingSystem("kafka"),
+				semconv.MessagingKafkaConsumerGroup(g.Opts.ConsumerGroupId),
+				semconv.NetTransportTCP,
+				semconv.MessagingDestinationName(msg.Topic),
+				semconv.MessagingKafkaMessageOffset(int(msg.Offset)),
+				semconv.MessagingMessagePayloadSizeBytes(len(msg.Value)),
+				semconv.MessagingOperationReceive,
+				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
+			),
+		)
+	return ctx, span
 }
 
 func (g *groupHandler) storeIntoDb(
@@ -179,7 +217,7 @@ func (g *groupHandler) storeIntoDb(
 	// Create db span
 	spanName := dbOperation + " " + g.MySql.Opts.Database + "." + g.MySql.Opts.Table
 	ctx, dbSpan := parentSpan.TracerProvider().
-		Tracer(g.ServiceName).
+		Tracer(g.Opts.ServiceName).
 		Start(
 			ctx,
 			spanName,
