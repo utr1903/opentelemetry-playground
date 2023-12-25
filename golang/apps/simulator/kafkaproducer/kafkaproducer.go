@@ -1,12 +1,17 @@
 package kafkaproducer
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Opts struct {
@@ -186,25 +191,57 @@ func (k *KafkaConsumerSimulator) publishMessages(
 
 	// Keep publishing messages
 	for {
+		func() {
+			// Make request after each interval
+			time.Sleep(time.Duration(k.Opts.RequestInterval) * time.Millisecond)
 
-		// Make request after each interval
-		time.Sleep(time.Duration(k.Opts.RequestInterval) * time.Millisecond)
+			// Get a random name
+			name := users[k.Randomizer.Intn(len(users))]
 
-		// Get a random name
-		name := users[k.Randomizer.Intn(len(users))]
+			// Create message
+			msg := sarama.ProducerMessage{
+				Topic: k.Opts.BrokerTopic,
+				Value: sarama.ByteEncoder([]byte(name)),
+			}
 
-		// Create message
-		msg := sarama.ProducerMessage{
-			Topic: k.Opts.BrokerTopic,
-			Value: sarama.ByteEncoder([]byte(name)),
-		}
+			// Inject tracing info into message
+			ctx := context.Background()
+			span := k.createProducerSpan(ctx, &msg)
+			defer span.End()
 
-		// Inject tracing info into message
-		// ctx := context.Background()
-		// otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(&msg))
-
-		// Publish message
-		producer.Input() <- &msg
-		<-producer.Successes()
+			// Publish message
+			producer.Input() <- &msg
+			<-producer.Successes()
+		}()
 	}
+}
+
+func (k *KafkaConsumerSimulator) createProducerSpan(
+	ctx context.Context,
+	msg *sarama.ProducerMessage,
+) trace.Span {
+	spanContext, span := otel.GetTracerProvider().Tracer(k.Opts.ServiceName).
+		Start(
+			ctx,
+			fmt.Sprintf("%s publish", msg.Topic),
+			trace.WithSpanKind(trace.SpanKindProducer),
+			trace.WithAttributes(
+				semconv.PeerService("kafka"),
+				semconv.NetTransportTCP,
+				semconv.MessagingSystem("kafka"),
+				semconv.MessagingDestinationName(msg.Topic),
+				semconv.MessagingOperationPublish,
+				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
+			),
+		)
+
+	carrier := propagation.MapCarrier{}
+	propagator := otel.GetTextMapPropagator()
+	propagator.Inject(spanContext, carrier)
+
+	for key, value := range carrier {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(key), Value: []byte(value)})
+	}
+
+	return span
 }
