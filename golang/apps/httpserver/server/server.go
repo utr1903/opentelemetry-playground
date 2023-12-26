@@ -85,6 +85,8 @@ func (s *Server) performQuery(
 	parentSpan *trace.Span,
 ) error {
 
+	user := getUser(r)
+
 	// Build query
 	dbOperation, dbStatement, err := s.createDbQuery(r)
 	if err != nil {
@@ -111,7 +113,7 @@ func (s *Server) performQuery(
 	err = s.executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		msg := "Executing DB query is failed."
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
+		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
 		// Add status code
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
@@ -130,7 +132,7 @@ func (s *Server) performQuery(
 	databaseConnectionError := r.URL.Query().Get("databaseConnectionError")
 	if databaseConnectionError == "true" {
 		msg := "Connection to database is lost."
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
+		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
 		// Add status code
 		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
@@ -192,9 +194,9 @@ func (s *Server) executeDbQuery(
 	dbStatement string,
 ) error {
 
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Executing query...")
-
 	user := getUser(r)
+	logger.Log(logrus.InfoLevel, ctx, user, "Executing query...")
+
 	switch r.Method {
 	case http.MethodGet:
 		// Perform a query
@@ -229,11 +231,11 @@ func (s *Server) executeDbQuery(
 			return err
 		}
 	default:
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, ctx, user, "Method is not allowed.")
 		return errors.New("method not allowed")
 	}
 
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Query is executed.")
+	logger.Log(logrus.InfoLevel, ctx, user, "Query is executed.")
 	return nil
 }
 
