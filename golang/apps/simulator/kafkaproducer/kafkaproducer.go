@@ -7,90 +7,105 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Shopify/sarama"
-	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/config"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"github.com/IBM/sarama"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
-var (
-	kafkaRequestInterval string
-	kafkaBrokerAddress   string
-	kafkaTopic           string
+type Opts struct {
+	ServiceName     string
+	RequestInterval int64
+	BrokerAddress   string
+	BrokerTopic     string
+}
 
-	randomizer *rand.Rand
-)
+type OptFunc func(*Opts)
 
-// Starts simulating Kafka consumer
-func SimulateKafka(
-	cfg *config.SimulatorConfig,
-) {
+func defaultOpts() *Opts {
+	return &Opts{
+		RequestInterval: 2000,
+		BrokerAddress:   "kafka",
+		BrokerTopic:     "otel",
+	}
+}
 
-	// Initialize simulator
-	initSimulator(cfg)
+type KafkaConsumerSimulator struct {
+	Opts       *Opts
+	Randomizer *rand.Rand
+}
 
-	interval, err := strconv.ParseInt(kafkaRequestInterval, 10, 64)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+// Create an kafka consumer simulator instance
+func New(
+	optFuncs ...OptFunc,
+) *KafkaConsumerSimulator {
+
+	// Instantiate options with default values
+	opts := defaultOpts()
+
+	// Apply external options
+	for _, f := range optFuncs {
+		f(opts)
 	}
 
+	randomizer := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	return &KafkaConsumerSimulator{
+		Opts:       opts,
+		Randomizer: randomizer,
+	}
+}
+
+// Configure service name of simulator
+func WithServiceName(serviceName string) OptFunc {
+	return func(opts *Opts) {
+		opts.ServiceName = serviceName
+	}
+}
+
+// Configure Kafka request interval
+func WithRequestInterval(requestInterval string) OptFunc {
+	interval, err := strconv.ParseInt(requestInterval, 10, 64)
+	if err != nil {
+		panic(err.Error())
+	}
+	return func(opts *Opts) {
+		opts.RequestInterval = interval
+	}
+}
+
+// Configure Kafka broker address
+func WithBrokerAddress(address string) OptFunc {
+	return func(opts *Opts) {
+		opts.BrokerAddress = address
+	}
+}
+
+// Configure Kafka broker topic
+func WithBrokerTopic(topic string) OptFunc {
+	return func(opts *Opts) {
+		opts.BrokerTopic = topic
+	}
+}
+
+// Starts simulating Kafka consumer
+func (k *KafkaConsumerSimulator) Simulate(
+	users []string,
+) {
+
 	// Create Kafka topic
-	createKafkaTopic()
+	k.createKafkaTopic()
 
 	// Create producer
-	producer := createKafkaProducer()
+	producer := k.createKafkaProducer()
 
-	go func() {
-
-		// Keep publishing messages
-		for {
-
-			// Make request after each interval
-			time.Sleep(time.Duration(interval) * time.Millisecond)
-
-			// Get a random name
-			name := cfg.Users[randomizer.Intn(len(cfg.Users))]
-
-			// Create message
-			msg := sarama.ProducerMessage{
-				Topic: kafkaTopic,
-				Value: sarama.ByteEncoder([]byte(name)),
-			}
-
-			// Inject tracing info into message
-			ctx := context.Background()
-			otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(&msg))
-
-			// Publish message
-			producer.Input() <- &msg
-			<-producer.Successes()
-		}
-	}()
-}
-
-// Initializes the Kafka producer by setting the necessary variables
-func initSimulator(
-	cfg *config.SimulatorConfig,
-) {
-	// Set Kafka producer related parameters
-	setKafkaParameters(cfg)
-
-	// Initialize random number generator
-	randomizer = rand.New(rand.NewSource(time.Now().UnixNano()))
-}
-
-// Sets Kafka related parameters
-func setKafkaParameters(
-	cfg *config.SimulatorConfig,
-) {
-	kafkaRequestInterval = cfg.KafkaRequestInterval
-	kafkaBrokerAddress = cfg.KafkaBrokerAddress
-	kafkaTopic = cfg.KafkaTopic
+	// Publish messages
+	go k.publishMessages(producer, users)
 }
 
 // Creates Kafta topic to publish the messages into
-func createKafkaTopic() {
+func (k *KafkaConsumerSimulator) createKafkaTopic() {
 
 	// Set up configuration
 	config := sarama.NewConfig()
@@ -99,7 +114,7 @@ func createKafkaTopic() {
 
 	// Create client
 	client, err := sarama.NewClient(
-		[]string{kafkaBrokerAddress},
+		[]string{k.Opts.BrokerAddress},
 		config,
 	)
 	if err != nil {
@@ -121,11 +136,11 @@ func createKafkaTopic() {
 	}
 
 	// Create topic if not exists
-	_, topicExists := topics[kafkaTopic]
+	_, topicExists := topics[k.Opts.BrokerTopic]
 	if !topicExists {
 
 		err = admin.CreateTopic(
-			kafkaTopic,
+			k.Opts.BrokerTopic,
 			&sarama.TopicDetail{
 				NumPartitions:     1,
 				ReplicationFactor: 1,
@@ -134,12 +149,12 @@ func createKafkaTopic() {
 			panic(err)
 		}
 
-		fmt.Println("Topic " + kafkaTopic + " is created")
+		fmt.Println("Topic " + k.Opts.BrokerTopic + " is created")
 	}
 }
 
 // Creates the Kafka producer
-func createKafkaProducer() sarama.AsyncProducer {
+func (k *KafkaConsumerSimulator) createKafkaProducer() sarama.AsyncProducer {
 
 	// Create config
 	saramaConfig := sarama.NewConfig()
@@ -148,7 +163,7 @@ func createKafkaProducer() sarama.AsyncProducer {
 
 	// Create producer
 	producer, err := sarama.NewAsyncProducer(
-		[]string{kafkaBrokerAddress},
+		[]string{k.Opts.BrokerAddress},
 		saramaConfig,
 	)
 	if err != nil {
@@ -156,7 +171,7 @@ func createKafkaProducer() sarama.AsyncProducer {
 	}
 
 	// Wrap producer
-	producer = otelsarama.WrapAsyncProducer(saramaConfig, producer)
+	// producer = otelsarama.WrapAsyncProducer(saramaConfig, producer)
 
 	// Print errors if message publishing goes wrong
 	go func() {
@@ -166,4 +181,67 @@ func createKafkaProducer() sarama.AsyncProducer {
 	}()
 
 	return producer
+}
+
+// Publish messages to topic
+func (k *KafkaConsumerSimulator) publishMessages(
+	producer sarama.AsyncProducer,
+	users []string,
+) {
+
+	// Keep publishing messages
+	for {
+		func() {
+			// Make request after each interval
+			time.Sleep(time.Duration(k.Opts.RequestInterval) * time.Millisecond)
+
+			// Get a random name
+			name := users[k.Randomizer.Intn(len(users))]
+
+			// Create message
+			msg := sarama.ProducerMessage{
+				Topic: k.Opts.BrokerTopic,
+				Value: sarama.ByteEncoder([]byte(name)),
+			}
+
+			// Inject tracing info into message
+			ctx := context.Background()
+			span := k.createProducerSpan(ctx, &msg)
+			defer span.End()
+
+			// Publish message
+			producer.Input() <- &msg
+			<-producer.Successes()
+		}()
+	}
+}
+
+func (k *KafkaConsumerSimulator) createProducerSpan(
+	ctx context.Context,
+	msg *sarama.ProducerMessage,
+) trace.Span {
+	spanContext, span := otel.GetTracerProvider().Tracer(k.Opts.ServiceName).
+		Start(
+			ctx,
+			fmt.Sprintf("%s publish", msg.Topic),
+			trace.WithSpanKind(trace.SpanKindProducer),
+			trace.WithAttributes(
+				semconv.PeerService("kafka"),
+				semconv.NetTransportTCP,
+				semconv.MessagingSystem("kafka"),
+				semconv.MessagingDestinationName(msg.Topic),
+				semconv.MessagingOperationPublish,
+				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
+			),
+		)
+
+	carrier := propagation.MapCarrier{}
+	propagator := otel.GetTextMapPropagator()
+	propagator.Inject(spanContext, carrier)
+
+	for key, value := range carrier {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(key), Value: []byte(value)})
+	}
+
+	return span
 }

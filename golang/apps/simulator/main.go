@@ -39,12 +39,42 @@ func main() {
 	}
 
 	// Simulate
-	go httpclient.SimulateHttpServer(cfg)
-	go kafkaproducer.SimulateKafka(cfg)
+	go simulateHttpServer(cfg)
+	go simulateKafkaConsumer(cfg)
 
 	// Wait for signal to shutdown the simulator
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	<-ctx.Done()
+}
+
+func simulateHttpServer(
+	cfg *config.SimulatorConfig,
+) {
+	// Instantiate HTTP server simulator
+	httpserverSimulator := httpclient.New(
+		httpclient.WithServiceName(cfg.ServiceName),
+		httpclient.WithRequestInterval(cfg.HttpserverRequestInterval),
+		httpclient.WithServerEndpoint(cfg.HttpserverEndpoint),
+		httpclient.WithServerPort(cfg.HttpserverPort),
+	)
+
+	// Simulate
+	httpserverSimulator.Simulate(cfg.Users)
+}
+
+func simulateKafkaConsumer(
+	cfg *config.SimulatorConfig,
+) {
+	// Instantiate Kafka consumer simulator
+	kafkaConsumerSimulator := kafkaproducer.New(
+		kafkaproducer.WithServiceName(cfg.ServiceName),
+		kafkaproducer.WithRequestInterval(cfg.KafkaRequestInterval),
+		kafkaproducer.WithBrokerAddress(cfg.KafkaBrokerAddress),
+		kafkaproducer.WithBrokerTopic(cfg.KafkaTopic),
+	)
+
+	// Simulate
+	kafkaConsumerSimulator.Simulate(cfg.Users)
 }

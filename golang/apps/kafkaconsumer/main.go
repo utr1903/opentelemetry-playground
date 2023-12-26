@@ -37,13 +37,29 @@ func main() {
 		panic(err)
 	}
 
-	// Connect to MySQL
-	mysql.CreateDatabaseConnection(cfg)
-	defer mysql.Get().Close()
+	// Instantiate MySQL database
+	db := mysql.New(
+		mysql.WithServer(cfg.MysqlServer),
+		mysql.WithPort(cfg.MysqlPort),
+		mysql.WithUsername(cfg.MysqlUsername),
+		mysql.WithPassword(cfg.MysqlPassword),
+		mysql.WithDatabase(cfg.MysqlDatabase),
+		mysql.WithTable(cfg.MysqlTable),
+	)
+	db.CreateDatabaseConnection()
+	defer db.Instance.Close()
 
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	if err := consumer.StartConsumerGroup(ctx, cfg); err != nil {
+
+	// Instantiate Kafka consumer
+	kafkaConsumer := consumer.New(db,
+		consumer.WithServiceName(cfg.ServiceName),
+		consumer.WithBrokerAddress(cfg.KafkaBrokerAddress),
+		consumer.WithBrokerTopic(cfg.KafkaTopic),
+		consumer.WithConsumerGroupId(cfg.KafkaGroupId),
+	)
+	if err := kafkaConsumer.StartConsumerGroup(ctx); err != nil {
 		panic(err.Error())
 	}
 

@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
-	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/config"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,8 +18,46 @@ import (
 
 const SERVER string = "httpserver"
 
+type Server struct {
+	MySql *mysql.MySqlDatabase
+}
+
+// Create a HTTP server instance
+func New(
+	db *mysql.MySqlDatabase,
+) *Server {
+	return &Server{
+		MySql: db,
+	}
+}
+
+// Liveness
+func (s *Server) Livez(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+// Readiness
+func (s *Server) Readyz(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	err := s.MySql.Instance.Ping()
+	if err != nil {
+		logger.Log(logrus.ErrorLevel, r.Context(), "", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Not OK"))
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}
+}
+
 // Server handler
-func Handler(
+func (s *Server) Handler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -32,26 +69,26 @@ func Handler(
 	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
 
 	// Perform database query
-	err := performQuery(w, r, &parentSpan)
+	err := s.performQuery(w, r, &parentSpan)
 	if err != nil {
 		return
 	}
 
 	performPostprocessing(r, &parentSpan)
-	createHttpResponse(&w, http.StatusOK, []byte("Success"), &parentSpan)
+	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), &parentSpan)
 }
 
 // Performs the database query against the MySQL database
-func performQuery(
+func (s *Server) performQuery(
 	w http.ResponseWriter,
 	r *http.Request,
 	parentSpan *trace.Span,
 ) error {
 
 	// Build query
-	dbOperation, dbStatement, err := createDbQuery(r)
+	dbOperation, dbStatement, err := s.createDbQuery(r)
 	if err != nil {
-		createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"), parentSpan)
+		s.createHttpResponse(&w, http.StatusMethodNotAllowed, []byte("Method not allowed"), parentSpan)
 		return err
 	}
 
@@ -60,18 +97,18 @@ func performQuery(
 		Tracer(SERVER).
 		Start(
 			r.Context(),
-			dbOperation+" "+config.GetConfig().MysqlDatabase+"."+config.GetConfig().MysqlTable,
+			dbOperation+" "+s.MySql.Opts.Database+"."+s.MySql.Opts.Table,
 			trace.WithSpanKind(trace.SpanKindClient),
 		)
 	defer dbSpan.End()
 
 	// Set additional span attributes
-	dbSpanAttrs := getCommonDbSpanAttributes()
+	dbSpanAttrs := s.getCommonDbSpanAttributes()
 	dbSpanAttrs = append(dbSpanAttrs, semconv.DBOperation(dbOperation))
 	dbSpanAttrs = append(dbSpanAttrs, semconv.DBStatement(dbStatement))
 
 	// Perform query
-	err = executeDbQuery(ctx, r, dbStatement)
+	err = s.executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		msg := "Executing DB query is failed."
 		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
@@ -85,7 +122,7 @@ func performQuery(
 			semconv.ExceptionEscaped(true),
 		))
 
-		createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
+		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
 		return err
 	}
 
@@ -104,7 +141,7 @@ func performQuery(
 			semconv.ExceptionEscaped(true),
 		))
 
-		createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
+		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
 	}
 	dbSpan.SetAttributes(dbSpanAttrs...)
@@ -112,7 +149,7 @@ func performQuery(
 }
 
 // Creates the database query operation and statement
-func createDbQuery(
+func (s *Server) createDbQuery(
 	r *http.Request,
 ) (
 	string,
@@ -133,12 +170,12 @@ func createDbQuery(
 		if tableDoesNotExistError == "true" {
 			dbStatement = dbOperation + " name FROM " + "faketable"
 		} else {
-			dbStatement = dbOperation + " name FROM " + config.GetConfig().MysqlTable
+			dbStatement = dbOperation + " name FROM " + s.MySql.Opts.Table
 		}
 		return dbOperation, dbStatement, nil
 	case http.MethodDelete:
 		dbOperation = "DELETE"
-		dbStatement = dbOperation + " FROM " + config.GetConfig().MysqlTable
+		dbStatement = dbOperation + " FROM " + s.MySql.Opts.Table
 	default:
 		logger.Log(logrus.ErrorLevel, r.Context(), getUser(r), "Method is not allowed.")
 		return "", "", errors.New("method not allowed")
@@ -149,7 +186,7 @@ func createDbQuery(
 }
 
 // Executes the MySQL database statement
-func executeDbQuery(
+func (s *Server) executeDbQuery(
 	ctx context.Context,
 	r *http.Request,
 	dbStatement string,
@@ -161,7 +198,7 @@ func executeDbQuery(
 	switch r.Method {
 	case http.MethodGet:
 		// Perform a query
-		rows, err := mysql.Get().Query(dbStatement)
+		rows, err := s.MySql.Instance.Query(dbStatement)
 		if err != nil {
 			logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 			return err
@@ -186,7 +223,7 @@ func executeDbQuery(
 			return err
 		}
 	case http.MethodDelete:
-		_, err := mysql.Get().Exec(dbStatement)
+		_, err := s.MySql.Instance.Exec(dbStatement)
 		if err != nil {
 			logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
 			return err
@@ -201,7 +238,7 @@ func executeDbQuery(
 }
 
 // Creates a HTTP response
-func createHttpResponse(
+func (s *Server) createHttpResponse(
 	w *http.ResponseWriter,
 	statusCode int,
 	body []byte,
@@ -217,15 +254,15 @@ func createHttpResponse(
 }
 
 // Returns common MySQL database span attributes
-func getCommonDbSpanAttributes() []attribute.KeyValue {
+func (s *Server) getCommonDbSpanAttributes() []attribute.KeyValue {
 	return []attribute.KeyValue{
 		semconv.DBSystemMySQL,
-		semconv.DBUser(config.GetConfig().MysqlUsername),
-		semconv.NetPeerName(config.GetConfig().MysqlServer),
-		semconv.NetPeerPort(int(config.GetConfig().MysqlPort)),
+		semconv.DBUser(s.MySql.Opts.Username),
+		semconv.NetPeerName(s.MySql.Opts.Server),
+		// semconv.NetPeerPort(int(s.MySql.Opts.Port)),
 		semconv.NetTransportTCP,
-		semconv.DBName(config.GetConfig().MysqlDatabase),
-		semconv.DBSQLTable(config.GetConfig().MysqlTable),
+		semconv.DBName(s.MySql.Opts.Database),
+		semconv.DBSQLTable(s.MySql.Opts.Table),
 	}
 }
 

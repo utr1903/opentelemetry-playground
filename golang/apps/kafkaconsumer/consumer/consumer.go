@@ -2,50 +2,126 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/sirupsen/logrus"
-	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/config"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/mysql"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func StartConsumerGroup(
+type Opts struct {
+	ServiceName     string
+	BrokerAddress   string
+	BrokerTopic     string
+	ConsumerGroupId string
+}
+
+type OptFunc func(*Opts)
+
+func defaultOpts() *Opts {
+	return &Opts{
+		BrokerAddress:   "kafka",
+		BrokerTopic:     "otel",
+		ConsumerGroupId: "kafkaconsumer",
+	}
+}
+
+type KafkaConsumer struct {
+	Opts  *Opts
+	MySql *mysql.MySqlDatabase
+}
+
+// Create a kafka consumer instance
+func New(
+	db *mysql.MySqlDatabase,
+	optFuncs ...OptFunc,
+) *KafkaConsumer {
+
+	// Instantiate options with default values
+	opts := defaultOpts()
+
+	// Apply external options
+	for _, f := range optFuncs {
+		f(opts)
+	}
+
+	return &KafkaConsumer{
+		MySql: db,
+		Opts:  opts,
+	}
+}
+
+// Configure service name of consumer
+func WithServiceName(serviceName string) OptFunc {
+	return func(opts *Opts) {
+		opts.ServiceName = serviceName
+	}
+}
+
+// Configure Kafka broker address
+func WithBrokerAddress(address string) OptFunc {
+	return func(opts *Opts) {
+		opts.BrokerAddress = address
+	}
+}
+
+// Configure Kafka broker topic
+func WithBrokerTopic(topic string) OptFunc {
+	return func(opts *Opts) {
+		opts.BrokerTopic = topic
+	}
+}
+
+// Configure Kafka consumer group ID
+func WithConsumerGroupId(groupId string) OptFunc {
+	return func(opts *Opts) {
+		opts.ConsumerGroupId = groupId
+	}
+}
+
+func (k *KafkaConsumer) StartConsumerGroup(
 	ctx context.Context,
-	cfg *config.KafkaConsumerConfig,
 ) error {
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.Version = sarama.V3_0_0_0
 	saramaConfig.Producer.Return.Successes = true
 
 	consumerGroup, err := sarama.NewConsumerGroup(
-		[]string{cfg.KafkaBrokerAddress},
-		cfg.KafkaGroupId,
+		[]string{k.Opts.BrokerAddress},
+		k.Opts.ConsumerGroupId,
 		saramaConfig,
 	)
 	if err != nil {
 		return err
 	}
 
-	handler := groupHandler{}
-	wrappedHandler := otelsarama.WrapConsumerGroupHandler(&handler)
+	handler := groupHandler{
+		Opts:  k.Opts,
+		MySql: k.MySql,
+	}
 
 	err = consumerGroup.Consume(
 		ctx,
-		[]string{cfg.KafkaTopic},
-		wrappedHandler,
+		[]string{k.Opts.BrokerTopic},
+		&handler,
 	)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-type groupHandler struct{}
+type groupHandler struct {
+	Opts  *Opts
+	MySql *mysql.MySqlDatabase
+}
 
 func (g *groupHandler) Setup(_ sarama.ConsumerGroupSession) error {
 	return nil
@@ -61,24 +137,26 @@ func (g *groupHandler) ConsumeClaim(
 ) error {
 	for {
 		select {
-		case message := <-claim.Messages():
+		case msg := <-claim.Messages():
 
-			ctx := session.Context()
+			// Create consumer span (parent)
+			ctx, consumerSpan := g.startConsumerSpan(msg)
+			defer consumerSpan.End()
 
 			// Parse name out of the message
-			name := string(message.Value)
+			name := string(msg.Value)
 
 			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message...")
 
 			// Store it into db
-			err := storeIntoDb(ctx, name)
+			err := g.storeIntoDb(ctx, name)
 			if err != nil {
 				logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is failed.")
 				return nil
 			}
 
 			// Acknowledge message
-			session.MarkMessage(message, "")
+			session.MarkMessage(msg, "")
 			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is succeeded.")
 
 		case <-session.Context().Done():
@@ -87,7 +165,41 @@ func (g *groupHandler) ConsumeClaim(
 	}
 }
 
-func storeIntoDb(
+func (g *groupHandler) startConsumerSpan(
+	msg *sarama.ConsumerMessage,
+) (
+	context.Context,
+	trace.Span,
+) {
+	headers := propagation.MapCarrier{}
+
+	for _, recordHeader := range msg.Headers {
+		headers[string(recordHeader.Key)] = string(recordHeader.Value)
+	}
+
+	propagator := otel.GetTextMapPropagator()
+	ctx := propagator.Extract(context.Background(), headers)
+
+	ctx, span := otel.GetTracerProvider().Tracer(g.Opts.ServiceName).
+		Start(
+			ctx,
+			fmt.Sprintf("%s receive", msg.Topic),
+			trace.WithSpanKind(trace.SpanKindConsumer),
+			trace.WithAttributes(
+				semconv.MessagingSystem("kafka"),
+				semconv.MessagingKafkaConsumerGroup(g.Opts.ConsumerGroupId),
+				semconv.NetTransportTCP,
+				semconv.MessagingDestinationName(msg.Topic),
+				semconv.MessagingKafkaMessageOffset(int(msg.Offset)),
+				semconv.MessagingMessagePayloadSizeBytes(len(msg.Value)),
+				semconv.MessagingOperationReceive,
+				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
+			),
+		)
+	return ctx, span
+}
+
+func (g *groupHandler) storeIntoDb(
 	ctx context.Context,
 	name string,
 ) error {
@@ -96,16 +208,16 @@ func storeIntoDb(
 
 	// Build db query
 	dbOperation := "INSERT"
-	dbStatement := dbOperation + " INTO " + config.GetConfig().MysqlTable + " (name) VALUES (?)"
+	dbStatement := dbOperation + " INTO " + g.MySql.Opts.Table + " (name) VALUES (?)"
 
 	// Get current parentSpan
 	parentSpan := trace.SpanFromContext(ctx)
 	defer parentSpan.End()
 
 	// Create db span
-	spanName := dbOperation + " " + config.GetConfig().MysqlDatabase + "." + config.GetConfig().MysqlTable
+	spanName := dbOperation + " " + g.MySql.Opts.Database + "." + g.MySql.Opts.Table
 	ctx, dbSpan := parentSpan.TracerProvider().
-		Tracer(config.GetConfig().ServiceName).
+		Tracer(g.Opts.ServiceName).
 		Start(
 			ctx,
 			spanName,
@@ -116,20 +228,18 @@ func storeIntoDb(
 	// Set additional span attributes
 	dbSpanAttrs := []attribute.KeyValue{
 		semconv.DBSystemMySQL,
-		semconv.DBUser(config.GetConfig().MysqlUsername),
-		semconv.NetPeerName(config.GetConfig().MysqlServer),
-		semconv.NetPeerPort(int(config.GetConfig().MysqlPort)),
+		semconv.DBUser(g.MySql.Opts.Username),
+		semconv.NetPeerName(g.MySql.Opts.Server),
+		// semconv.NetPeerPort(int(s.MySql.Opts.Port)),
 		semconv.NetTransportTCP,
-		semconv.DBName(config.GetConfig().MysqlDatabase),
-		semconv.DBSQLTable(config.GetConfig().MysqlTable),
+		semconv.DBName(g.MySql.Opts.Database),
+		semconv.DBSQLTable(g.MySql.Opts.Table),
 		semconv.DBOperation(dbOperation),
 		semconv.DBStatement(dbStatement),
 	}
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBOperation(dbOperation))
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBStatement(dbStatement))
 
 	// Prepare a statement
-	stmt, err := mysql.Get().Prepare(dbStatement)
+	stmt, err := g.MySql.Instance.Prepare(dbStatement)
 	if err != nil {
 		msg := "Preparing DB statement is failed."
 		logger.Log(logrus.ErrorLevel, ctx, name, msg)
