@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -35,20 +36,20 @@ func NewOtelHttpInterceptor(
 	}
 
 	// Instantiate trace provider
-	m.tracer = otel.GetTracerProvider().Tracer(HttpInterceptor)
+	m.tracer = otel.GetTracerProvider().Tracer(semconv.HttpInterceptor)
 
 	// Instantiate meter provider
-	m.meter = otel.GetMeterProvider().Meter(HttpInterceptor)
+	m.meter = otel.GetMeterProvider().Meter(semconv.HttpInterceptor)
 
 	// Instantiate propagator
 	m.propagator = otel.GetTextMapPropagator()
 
 	// Create HTTP server latency histogram
 	latency, err := m.meter.Float64Histogram(
-		HttpServerLatency,
+		semconv.HttpServerLatency,
 		metric.WithUnit("ms"),
 		metric.WithDescription("Measures the duration of HTTP request handling"),
-		metric.WithExplicitBucketBoundaries(HttpExplicitBucketBoundaries...),
+		metric.WithExplicitBucketBoundaries(semconv.HttpExplicitBucketBoundaries...),
 	)
 	if err != nil {
 		panic(err)
@@ -94,8 +95,8 @@ func (m *httpMiddleware) serve(
 	next.ServeHTTP(rww, r.WithContext(ctx))
 
 	// Add HTTP status code to the attributes
-	span.SetAttributes(HttpResponseStatusCode.Int(rww.statusCode))
-	metricAttrs = append(metricAttrs, HttpResponseStatusCode.Int(rww.statusCode))
+	span.SetAttributes(semconv.HttpResponseStatusCode.Int(rww.statusCode))
+	metricAttrs = append(metricAttrs, semconv.HttpResponseStatusCode.Int(rww.statusCode))
 
 	// Create metric options
 	metricOpts := metric.WithAttributes(metricAttrs...)
@@ -111,7 +112,7 @@ func GetSpanAndMetricServerAttributes(
 	[]attribute.KeyValue,
 	[]attribute.KeyValue,
 ) {
-	spanAttrs := WithHttpServerAttributes(r)
+	spanAttrs := semconv.WithHttpServerAttributes(r)
 	metricAttrs := make([]attribute.KeyValue, len(spanAttrs))
 
 	copy(metricAttrs, spanAttrs)
