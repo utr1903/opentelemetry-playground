@@ -73,7 +73,7 @@ func (m *httpMiddleware) serve(
 	ctx := m.propagator.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 
 	// Parse HTTP attributes from the request for both span and metrics
-	spanAttrs, metricAttrs := GetSpanAndMetricServerAttributes(r)
+	spanAttrs, metricAttrs := m.getSpanAndMetricServerAttributes(r)
 
 	// Create span options
 	spanOpts := []trace.SpanStartOption{
@@ -106,7 +106,7 @@ func (m *httpMiddleware) serve(
 	m.latency.Record(ctx, elapsedTime, metricOpts)
 }
 
-func GetSpanAndMetricServerAttributes(
+func (m *httpMiddleware) getSpanAndMetricServerAttributes(
 	r *http.Request,
 ) (
 	[]attribute.KeyValue,
