@@ -77,7 +77,7 @@ func (s *Server) Handler(
 	parentSpan := trace.SpanFromContext(r.Context())
 	defer parentSpan.End()
 
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Handler is triggered")
 
 	// Perform database query
 	err := s.performQuery(w, r, parentSpan)
@@ -85,7 +85,7 @@ func (s *Server) Handler(
 		return
 	}
 
-	performPostprocessing(r, parentSpan)
+	s.performPostprocessing(r, parentSpan)
 	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), parentSpan)
 }
 
@@ -96,7 +96,7 @@ func (s *Server) performQuery(
 	parentSpan trace.Span,
 ) error {
 
-	user := getUser(r)
+	user := s.getUser(r)
 
 	// Build query
 	dbOperation, dbStatement, err := s.createDbQuery(r)
@@ -120,17 +120,8 @@ func (s *Server) performQuery(
 		msg := "Executing DB query is failed."
 		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
-		// Add status code
-		dbSpanAttrs := []attribute.KeyValue{
-			semconv.OtelStatusCode.String("ERROR"),
-			semconv.OtelStatusDescription.String(msg),
-		}
-		dbSpan.SetAttributes(dbSpanAttrs...)
-		dbSpan.RecordError(
-			err,
-			trace.WithAttributes(
-				semconv.ExceptionEscaped.Bool(true),
-			))
+		// Add error to span
+		s.addErrorToSpan(dbSpan, msg, err)
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
 		return err
@@ -142,17 +133,8 @@ func (s *Server) performQuery(
 		msg := "Connection to database is lost."
 		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
-		// Add status code
-		dbSpanAttrs := []attribute.KeyValue{
-			semconv.OtelStatusCode.String("ERROR"),
-			semconv.OtelStatusDescription.String(msg),
-		}
-		dbSpan.SetAttributes(dbSpanAttrs...)
-		dbSpan.RecordError(
-			err,
-			trace.WithAttributes(
-				semconv.ExceptionEscaped.Bool(true),
-			))
+		// Add error to span
+		s.addErrorToSpan(dbSpan, msg, err)
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
@@ -169,7 +151,7 @@ func (s *Server) createDbQuery(
 	string,
 	error,
 ) {
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Building query...")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Building query...")
 
 	var dbOperation string
 	var dbStatement string
@@ -190,11 +172,11 @@ func (s *Server) createDbQuery(
 		dbOperation = "DELETE"
 		dbStatement = dbOperation + " FROM " + s.MySql.Opts.Table
 	default:
-		logger.Log(logrus.ErrorLevel, r.Context(), getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, r.Context(), s.getUser(r), "Method is not allowed.")
 		return "", "", errors.New("method not allowed")
 	}
 
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Query is built.")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Query is built.")
 	return dbOperation, dbStatement, nil
 }
 
@@ -205,7 +187,7 @@ func (s *Server) executeDbQuery(
 	dbStatement string,
 ) error {
 
-	user := getUser(r)
+	user := s.getUser(r)
 	logger.Log(logrus.InfoLevel, ctx, user, "Executing query...")
 
 	switch r.Method {
@@ -267,7 +249,7 @@ func (s *Server) createHttpResponse(
 }
 
 // Performs a postprocessing step
-func performPostprocessing(
+func (s *Server) performPostprocessing(
 	r *http.Request,
 	parentSpan trace.Span,
 ) {
@@ -280,26 +262,26 @@ func performPostprocessing(
 		)
 	defer processingSpan.End()
 
-	produceSchemaNotFoundInCacheWarning(ctx, r)
+	s.produceSchemaNotFoundInCacheWarning(ctx, r)
 }
 
-func produceSchemaNotFoundInCacheWarning(
+func (s *Server) produceSchemaNotFoundInCacheWarning(
 	ctx context.Context,
 	r *http.Request,
 ) {
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Postprocessing...")
+	logger.Log(logrus.InfoLevel, ctx, s.getUser(r), "Postprocessing...")
 	schemaNotFoundInCacheWarning := r.URL.Query().Get("schemaNotFoundInCacheWarning")
 	if schemaNotFoundInCacheWarning == "true" {
-		user := getUser(r)
+		user := s.getUser(r)
 		logger.Log(logrus.WarnLevel, ctx, user, "Processing schema not found in cache. Calculating from scratch.")
 		time.Sleep(time.Millisecond * 500)
 	} else {
 		time.Sleep(time.Millisecond * 10)
 	}
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Postprocessing is complete.")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Postprocessing is complete.")
 }
 
-func getUser(
+func (s *Server) getUser(
 	r *http.Request,
 ) string {
 
@@ -308,4 +290,23 @@ func getUser(
 		user = "_anonymous_"
 	}
 	return user
+}
+
+// Add error to span
+func (s *Server) addErrorToSpan(
+	span trace.Span,
+	description string,
+	err error,
+) {
+
+	dbSpanAttrs := []attribute.KeyValue{
+		semconv.OtelStatusCode.String("ERROR"),
+		semconv.OtelStatusDescription.String(description),
+	}
+	span.SetAttributes(dbSpanAttrs...)
+	span.RecordError(
+		err,
+		trace.WithAttributes(
+			semconv.ExceptionEscaped.Bool(true),
+		))
 }
