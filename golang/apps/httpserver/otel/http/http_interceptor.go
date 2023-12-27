@@ -1,4 +1,4 @@
-package otel
+package http
 
 import (
 	"net/http"
@@ -22,11 +22,11 @@ type httpMiddleware struct {
 	latency metric.Float64Histogram
 }
 
-func NewHttpHandler(handler http.Handler, spanName string) http.Handler {
-	return NewOtelHttpInterceptor(spanName)(handler)
+func NewHandler(handler http.Handler, spanName string) http.Handler {
+	return NewInterceptor(spanName)(handler)
 }
 
-func NewOtelHttpInterceptor(
+func NewInterceptor(
 	spanName string,
 	// opts ...Opts,
 ) func(http.Handler) http.Handler {

@@ -1,4 +1,4 @@
-package otel
+package mysql
 
 import (
 	"context"
@@ -50,14 +50,14 @@ func WithTracerName(tracerName string) mySqlOptFunc {
 }
 
 // Configure MySQL server
-func WithMySqlServer(server string) mySqlOptFunc {
+func WithServer(server string) mySqlOptFunc {
 	return func(opts *mySqlOpts) {
 		opts.Server = server
 	}
 }
 
 // Configure MySQL port
-func WithMySqlPort(port string) mySqlOptFunc {
+func WithPort(port string) mySqlOptFunc {
 	return func(opts *mySqlOpts) {
 		p, _ := strconv.Atoi(port)
 		opts.Port = p
@@ -65,21 +65,21 @@ func WithMySqlPort(port string) mySqlOptFunc {
 }
 
 // Configure MySQL username
-func WithMySqlUsername(username string) mySqlOptFunc {
+func WithUsername(username string) mySqlOptFunc {
 	return func(opts *mySqlOpts) {
 		opts.Username = username
 	}
 }
 
 // Configure MySQL database
-func WithMySqlDatabase(database string) mySqlOptFunc {
+func WithDatabase(database string) mySqlOptFunc {
 	return func(opts *mySqlOpts) {
 		opts.Database = database
 	}
 }
 
 // Configure MySQL table
-func WithMySqlTable(table string) mySqlOptFunc {
+func WithTable(table string) mySqlOptFunc {
 	return func(opts *mySqlOpts) {
 		opts.Table = table
 	}

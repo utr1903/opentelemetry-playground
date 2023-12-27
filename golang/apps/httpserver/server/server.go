@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
-	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel"
+	otelmysql "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/mysql"
 	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -21,7 +21,7 @@ const SERVER string = "httpserver"
 
 type Server struct {
 	MySql             *mysql.MySqlDatabase
-	MySqlOtelEnricher *otel.MySqlEnricher
+	MySqlOtelEnricher *otelmysql.MySqlEnricher
 }
 
 // Create a HTTP server instance
@@ -31,13 +31,13 @@ func New(
 
 	return &Server{
 		MySql: db,
-		MySqlOtelEnricher: otel.NewMysqlEnricher(
-			otel.WithTracerName(SERVER),
-			otel.WithMySqlServer(db.Opts.Server),
-			otel.WithMySqlPort(db.Opts.Port),
-			otel.WithMySqlUsername(db.Opts.Username),
-			otel.WithMySqlDatabase(db.Opts.Database),
-			otel.WithMySqlTable(db.Opts.Table),
+		MySqlOtelEnricher: otelmysql.NewMysqlEnricher(
+			otelmysql.WithTracerName(SERVER),
+			otelmysql.WithServer(db.Opts.Server),
+			otelmysql.WithPort(db.Opts.Port),
+			otelmysql.WithUsername(db.Opts.Username),
+			otelmysql.WithDatabase(db.Opts.Database),
+			otelmysql.WithTable(db.Opts.Table),
 		),
 	}
 }

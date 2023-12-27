@@ -10,6 +10,7 @@ import (
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel"
+	otelhttp "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/http"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/server"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 )
@@ -56,7 +57,7 @@ func main() {
 	server := server.New(db)
 
 	// Serve
-	http.Handle("/api", otel.NewHttpHandler(http.HandlerFunc(server.Handler), "api"))
+	http.Handle("/api", otelhttp.NewHandler(http.HandlerFunc(server.Handler), "api"))
 	http.Handle("/livez", http.HandlerFunc(server.Livez))
 	http.Handle("/readyz", http.HandlerFunc(server.Readyz))
 	http.ListenAndServe(":"+cfg.ServicePort, nil)
