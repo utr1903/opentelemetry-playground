@@ -9,19 +9,30 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+// GENERAL
+const (
+	OtelStatusCode        = attribute.Key("otel.status_code")
+	OtelStatusDescription = attribute.Key("otel.status_description")
+
+	ExceptionEscaped = attribute.Key("exception.escaped")
+
+	NetworkProtocolVersion = attribute.Key("network.protocol.version")
+	UserAgentOriginal      = attribute.Key("user_agent.original")
+	ServerAddress          = attribute.Key("server.address")
+	ServerPort             = attribute.Key("server.port")
+	ClientAddress          = attribute.Key("client.address")
+	ClientPort             = attribute.Key("client.port")
+)
+
+// HTTP
 const (
 	HttpInterceptor   = "http_interceptor"
 	HttpServerLatency = "http.server.request.duration"
 
-	HttpMethodKey              = attribute.Key("http.request.method")
-	HttpSchemeKey              = attribute.Key("url.scheme")
-	HttpNetworkProtocolVersion = attribute.Key("network.protocol.version")
-	HttpUserAgentOriginal      = attribute.Key("user_agent.original")
-	HttpServerAddress          = attribute.Key("server.address")
-	HttpServerPort             = attribute.Key("server.port")
-	HttpClientAddress          = attribute.Key("client.address")
-	HttpClientPort             = attribute.Key("client.port")
-	HttpResponseStatusCode     = attribute.Key("http.response.status_code")
+	HttpMethodKey = attribute.Key("http.request.method")
+	HttpSchemeKey = attribute.Key("url.scheme")
+
+	HttpResponseStatusCode = attribute.Key("http.response.status_code")
 )
 
 // https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
@@ -78,20 +89,20 @@ func WithHttpServerAttributes(
 
 	// User agent
 	if userAgent != "" {
-		attrs = append(attrs, HttpUserAgentOriginal.String(userAgent))
+		attrs = append(attrs, UserAgentOriginal.String(userAgent))
 	}
 
 	// Server address & port
-	attrs = append(attrs, HttpServerAddress.String(serverAddress))
+	attrs = append(attrs, ServerAddress.String(serverAddress))
 	if serverPort > 0 {
-		attrs = append(attrs, HttpServerPort.Int(serverPort))
+		attrs = append(attrs, ServerPort.Int(serverPort))
 	}
 
 	// Client address & port
 	if clientAddress != "" {
-		attrs = append(attrs, HttpClientAddress.String(clientAddress))
+		attrs = append(attrs, ClientAddress.String(clientAddress))
 		if serverPort > 0 {
-			attrs = append(attrs, HttpClientPort.Int(clientPort))
+			attrs = append(attrs, ClientPort.Int(clientPort))
 		}
 	}
 
@@ -124,15 +135,15 @@ func httpNetworkProtocolVersion(
 ) attribute.KeyValue {
 	switch proto {
 	case "HTTP/1.0":
-		return HttpNetworkProtocolVersion.String("1.0")
+		return NetworkProtocolVersion.String("1.0")
 	case "HTTP/1.1":
-		return HttpNetworkProtocolVersion.String("1.1")
+		return NetworkProtocolVersion.String("1.1")
 	case "HTTP/2":
-		return HttpNetworkProtocolVersion.String("2.0")
+		return NetworkProtocolVersion.String("2.0")
 	case "HTTP/3":
-		return HttpNetworkProtocolVersion.String("3.0")
+		return NetworkProtocolVersion.String("3.0")
 	default:
-		return HttpNetworkProtocolVersion.String(proto)
+		return NetworkProtocolVersion.String(proto)
 	}
 }
 
@@ -173,3 +184,14 @@ func splitAddressAndPort(
 
 	return host, int(p)
 }
+
+// DATABASE
+
+const (
+	DatabaseSystem      = attribute.Key("db.system")
+	DatabaseUser        = attribute.Key("db.user")
+	DatabaseDbName      = attribute.Key("db.name")
+	DatabaseDbTable     = attribute.Key("db.table")
+	DatabaseDbOperation = attribute.Key("db.operation")
+	DatabaseDbStatement = attribute.Key("db.statement")
+)

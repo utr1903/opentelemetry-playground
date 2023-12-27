@@ -11,23 +11,34 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel"
+	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const SERVER string = "httpserver"
 
 type Server struct {
-	MySql *mysql.MySqlDatabase
+	MySql             *mysql.MySqlDatabase
+	MySqlOtelEnricher *otel.MySqlEnricher
 }
 
 // Create a HTTP server instance
 func New(
 	db *mysql.MySqlDatabase,
 ) *Server {
+
 	return &Server{
 		MySql: db,
+		MySqlOtelEnricher: otel.NewMysqlEnricher(
+			otel.WithTracerName(SERVER),
+			otel.WithMySqlServer(db.Opts.Server),
+			otel.WithMySqlPort(db.Opts.Port),
+			otel.WithMySqlUsername(db.Opts.Username),
+			otel.WithMySqlDatabase(db.Opts.Database),
+			otel.WithMySqlTable(db.Opts.Table),
+		),
 	}
 }
 
@@ -69,20 +80,20 @@ func (s *Server) Handler(
 	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
 
 	// Perform database query
-	err := s.performQuery(w, r, &parentSpan)
+	err := s.performQuery(w, r, parentSpan)
 	if err != nil {
 		return
 	}
 
-	performPostprocessing(r, &parentSpan)
-	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), &parentSpan)
+	performPostprocessing(r, parentSpan)
+	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), parentSpan)
 }
 
 // Performs the database query against the MySQL database
 func (s *Server) performQuery(
 	w http.ResponseWriter,
 	r *http.Request,
-	parentSpan *trace.Span,
+	parentSpan trace.Span,
 ) error {
 
 	user := getUser(r)
@@ -95,19 +106,13 @@ func (s *Server) performQuery(
 	}
 
 	// Create database span
-	ctx, dbSpan := (*parentSpan).TracerProvider().
-		Tracer(SERVER).
-		Start(
-			r.Context(),
-			dbOperation+" "+s.MySql.Opts.Database+"."+s.MySql.Opts.Table,
-			trace.WithSpanKind(trace.SpanKindClient),
-		)
+	ctx, dbSpan := s.MySqlOtelEnricher.CreateSpan(
+		r.Context(),
+		parentSpan,
+		dbOperation,
+		dbStatement,
+	)
 	defer dbSpan.End()
-
-	// Set additional span attributes
-	dbSpanAttrs := s.getCommonDbSpanAttributes()
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBOperation(dbOperation))
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBStatement(dbStatement))
 
 	// Perform query
 	err = s.executeDbQuery(ctx, r, dbStatement)
@@ -116,13 +121,16 @@ func (s *Server) performQuery(
 		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
+		dbSpanAttrs := []attribute.KeyValue{
+			semconv.OtelStatusCode.String("ERROR"),
+			semconv.OtelStatusDescription.String(msg),
+		}
 		dbSpan.SetAttributes(dbSpanAttrs...)
-
-		dbSpan.RecordError(err, trace.WithAttributes(
-			semconv.ExceptionEscaped(true),
-		))
+		dbSpan.RecordError(
+			err,
+			trace.WithAttributes(
+				semconv.ExceptionEscaped.Bool(true),
+			))
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
 		return err
@@ -135,18 +143,21 @@ func (s *Server) performQuery(
 		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
 		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
+		dbSpanAttrs := []attribute.KeyValue{
+			semconv.OtelStatusCode.String("ERROR"),
+			semconv.OtelStatusDescription.String(msg),
+		}
 		dbSpan.SetAttributes(dbSpanAttrs...)
-
-		dbSpan.RecordError(err, trace.WithAttributes(
-			semconv.ExceptionEscaped(true),
-		))
+		dbSpan.RecordError(
+			err,
+			trace.WithAttributes(
+				semconv.ExceptionEscaped.Bool(true),
+			))
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
 	}
-	dbSpan.SetAttributes(dbSpanAttrs...)
+
 	return nil
 }
 
@@ -244,36 +255,23 @@ func (s *Server) createHttpResponse(
 	w *http.ResponseWriter,
 	statusCode int,
 	body []byte,
-	serverSpan *trace.Span,
+	serverSpan trace.Span,
 ) {
 	(*w).WriteHeader(statusCode)
 	(*w).Write(body)
 
 	attrs := []attribute.KeyValue{
-		semconv.HTTPStatusCode(statusCode),
+		semconv.HttpResponseStatusCode.Int(statusCode),
 	}
-	(*serverSpan).SetAttributes(attrs...)
-}
-
-// Returns common MySQL database span attributes
-func (s *Server) getCommonDbSpanAttributes() []attribute.KeyValue {
-	return []attribute.KeyValue{
-		semconv.DBSystemMySQL,
-		semconv.DBUser(s.MySql.Opts.Username),
-		semconv.NetPeerName(s.MySql.Opts.Server),
-		// semconv.NetPeerPort(int(s.MySql.Opts.Port)),
-		semconv.NetTransportTCP,
-		semconv.DBName(s.MySql.Opts.Database),
-		semconv.DBSQLTable(s.MySql.Opts.Table),
-	}
+	serverSpan.SetAttributes(attrs...)
 }
 
 // Performs a postprocessing step
 func performPostprocessing(
 	r *http.Request,
-	parentSpan *trace.Span,
+	parentSpan trace.Span,
 ) {
-	ctx, processingSpan := (*parentSpan).TracerProvider().
+	ctx, processingSpan := parentSpan.TracerProvider().
 		Tracer(SERVER).
 		Start(
 			r.Context(),
