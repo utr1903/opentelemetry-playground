@@ -32,7 +32,14 @@ func NewMysqlEnricher(
 ) *MySqlEnricher {
 
 	// Apply external options
-	var opts *mySqlOpts
+	opts := &mySqlOpts{
+		TracerName: "",
+		Server:     "",
+		Port:       0,
+		Username:   "",
+		Database:   "",
+		Table:      "",
+	}
 	for _, f := range optFuncs {
 		f(opts)
 	}
