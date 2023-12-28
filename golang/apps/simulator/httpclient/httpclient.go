@@ -3,6 +3,7 @@ package httpclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -12,12 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/logger"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	otelhttp "github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel/http"
 )
 
 var (
@@ -47,10 +43,9 @@ func defaultOpts() *Opts {
 }
 
 type HttpServerSimulator struct {
-	Opts               *Opts
-	Client             *http.Client
-	Randomizer         *rand.Rand
-	HttpClientDuration metric.Float64Histogram
+	Opts       *Opts
+	Client     *otelhttp.HttpClient
+	Randomizer *rand.Rand
 }
 
 // Create an HTTP server simulator instance
@@ -66,25 +61,16 @@ func New(
 		f(opts)
 	}
 
-	httpClient := &http.Client{
-		Transport: otelhttp.NewTransport(http.DefaultTransport),
-		Timeout:   time.Duration(30 * time.Second),
-	}
+	httpClient := otelhttp.New(
+		otelhttp.WithTimeout(time.Duration(10 * time.Second)),
+	)
 
 	randomizer := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	meter, err := otel.GetMeterProvider().
-		Meter(opts.ServiceName).
-		Float64Histogram("http.client.duration")
-	if err != nil {
-		panic(err.Error())
-	}
-
 	return &HttpServerSimulator{
-		Opts:               opts,
-		Client:             httpClient,
-		Randomizer:         randomizer,
-		HttpClientDuration: meter,
+		Opts:       opts,
+		Client:     httpClient,
+		Randomizer: randomizer,
 	}
 }
 
@@ -184,13 +170,9 @@ func (h *HttpServerSimulator) performHttpCall(
 
 	logger.Log(logrus.InfoLevel, ctx, user, "Preparing HTTP call...")
 
-	// Create request propagation
-	carrier := propagation.HeaderCarrier(http.Header{})
-	otel.GetTextMapPropagator().Inject(ctx, carrier)
-
 	// Create HTTP request with trace context
-	req, err := http.NewRequestWithContext(
-		ctx, httpMethod,
+	req, err := http.NewRequest(
+		httpMethod,
 		"http://"+h.Opts.ServerEndpoint+":"+h.Opts.ServerPort+"/api",
 		nil,
 	)
@@ -214,15 +196,11 @@ func (h *HttpServerSimulator) performHttpCall(
 	}
 	logger.Log(logrus.InfoLevel, ctx, user, "HTTP call is prepared.")
 
-	// Start timer
-	requestStartTime := time.Now()
-
 	// Perform HTTP request
 	logger.Log(logrus.InfoLevel, ctx, user, "Performing HTTP call")
-	res, err := h.Client.Do(req)
+	res, err := h.Client.Do(ctx, req, fmt.Sprintf("HTTP %s", req.Method))
 	if err != nil {
 		logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
-		h.recordClientDuration(ctx, httpMethod, http.StatusInternalServerError, requestStartTime)
 		return err
 	}
 	defer res.Body.Close()
@@ -231,39 +209,15 @@ func (h *HttpServerSimulator) performHttpCall(
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		logger.Log(logrus.ErrorLevel, ctx, user, err.Error())
-		h.recordClientDuration(ctx, httpMethod, res.StatusCode, requestStartTime)
 		return err
 	}
 
 	// Check status code
 	if res.StatusCode != http.StatusOK {
 		logger.Log(logrus.ErrorLevel, ctx, user, string(resBody))
-		h.recordClientDuration(ctx, httpMethod, res.StatusCode, requestStartTime)
 		return errors.New("call to donald returned not ok status")
 	}
 
-	h.recordClientDuration(ctx, httpMethod, res.StatusCode, requestStartTime)
 	logger.Log(logrus.InfoLevel, ctx, user, "HTTP call is performed successfully.")
 	return nil
-}
-
-// Records HTTP client duration
-func (h *HttpServerSimulator) recordClientDuration(
-	ctx context.Context,
-	httpMethod string,
-	statusCode int,
-	startTime time.Time,
-) {
-	elapsedTime := float64(time.Since(startTime)) / float64(time.Millisecond)
-	httpserverPortAsInt, _ := strconv.Atoi(h.Opts.ServerPort)
-	attributes := attribute.NewSet(
-		semconv.HTTPSchemeHTTP,
-		semconv.HTTPFlavorHTTP11,
-		semconv.HTTPMethod(httpMethod),
-		semconv.NetPeerName(h.Opts.ServerEndpoint),
-		semconv.NetPeerPort(httpserverPortAsInt),
-		semconv.HTTPStatusCode(statusCode),
-	)
-
-	h.HttpClientDuration.Record(ctx, elapsedTime, metric.WithAttributes(attributes.ToSlice()...))
 }
