@@ -2,7 +2,9 @@ package otel
 
 import (
 	"context"
+	"io"
 	"os"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -31,9 +33,17 @@ func NewTraceProvider(
 	case "otlp":
 		exp, err = otlptracegrpc.New(ctx)
 	default:
+		isTesting := strings.HasSuffix(os.Args[0], ".test")
+		var w io.Writer
+		if isTesting {
+			w = io.Discard
+		} else {
+			w = os.Stdout
+		}
 		exp, err = stdouttrace.New(
 			// Use human readable output.
 			stdouttrace.WithPrettyPrint(),
+			stdouttrace.WithWriter(w),
 		)
 	}
 
@@ -96,7 +106,17 @@ func NewMetricProvider(
 	case "otlp":
 		exp, err = otlpmetricgrpc.New(ctx)
 	default:
-		exp, err = stdoutmetric.New()
+		isTesting := strings.HasSuffix(os.Args[0], ".test")
+		var w io.Writer
+		if isTesting {
+			w = io.Discard
+		} else {
+			w = os.Stdout
+		}
+		exp, err = stdoutmetric.New(
+			stdoutmetric.WithPrettyPrint(),
+			stdoutmetric.WithWriter(w),
+		)
 	}
 
 	if err != nil {
