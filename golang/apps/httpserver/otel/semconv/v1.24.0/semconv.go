@@ -11,28 +11,40 @@ import (
 
 // GENERAL
 const (
-	OtelStatusCode        = attribute.Key("otel.status_code")
-	OtelStatusDescription = attribute.Key("otel.status_description")
+	OtelStatusCodeName        = "otel.status_code"
+	OtelStatusCode            = attribute.Key(OtelStatusCodeName)
+	OtelStatusDescriptionName = "otel.status_description"
+	OtelStatusDescription     = attribute.Key(OtelStatusDescriptionName)
 
-	ExceptionEscaped = attribute.Key("exception.escaped")
+	ExceptionEscapedName = "exception.escaped"
+	ExceptionEscaped     = attribute.Key(ExceptionEscapedName)
 
-	NetworkProtocolVersion = attribute.Key("network.protocol.version")
-	UserAgentOriginal      = attribute.Key("user_agent.original")
-	ServerAddress          = attribute.Key("server.address")
-	ServerPort             = attribute.Key("server.port")
-	ClientAddress          = attribute.Key("client.address")
-	ClientPort             = attribute.Key("client.port")
+	NetworkProtocolVersionName = "network.protocol.version"
+	NetworkProtocolVersion     = attribute.Key(NetworkProtocolVersionName)
+	UserAgentOriginalName      = "user_agent.original"
+	UserAgentOriginal          = attribute.Key(UserAgentOriginalName)
+	ServerAddressName          = "server.address"
+	ServerAddress              = attribute.Key(ServerAddressName)
+	ServerPortName             = "server.port"
+	ServerPort                 = attribute.Key(ServerPortName)
+	ClientAddressName          = "client.address"
+	ClientAddress              = attribute.Key(ClientAddressName)
+	ClientPortName             = "client.port"
+	ClientPort                 = attribute.Key(ClientPortName)
 )
 
 // HTTP
 const (
-	HttpInterceptor   = "http_interceptor"
-	HttpServerLatency = "http.server.request.duration"
+	HttpInterceptorName   = "http_interceptor"
+	HttpServerLatencyName = "http.server.request.duration"
 
-	HttpMethodKey = attribute.Key("http.request.method")
-	HttpSchemeKey = attribute.Key("url.scheme")
+	HttpMethodKeyName = "http.request.method"
+	HttpMethodKey     = attribute.Key(HttpMethodKeyName)
+	HttpSchemeKeyName = "url.scheme"
+	HttpSchemeKey     = attribute.Key(HttpSchemeKeyName)
 
-	HttpResponseStatusCode = attribute.Key("http.response.status_code")
+	HttpResponseStatusCodeName = "http.response.status_code"
+	HttpResponseStatusCode     = attribute.Key(HttpResponseStatusCodeName)
 )
 
 // https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
