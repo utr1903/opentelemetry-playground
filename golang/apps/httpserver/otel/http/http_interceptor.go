@@ -36,17 +36,17 @@ func NewInterceptor(
 	}
 
 	// Instantiate trace provider
-	m.tracer = otel.GetTracerProvider().Tracer(semconv.HttpInterceptor)
+	m.tracer = otel.GetTracerProvider().Tracer(semconv.HttpInterceptorName)
 
 	// Instantiate meter provider
-	m.meter = otel.GetMeterProvider().Meter(semconv.HttpInterceptor)
+	m.meter = otel.GetMeterProvider().Meter(semconv.HttpInterceptorName)
 
 	// Instantiate propagator
 	m.propagator = otel.GetTextMapPropagator()
 
 	// Create HTTP server latency histogram
 	latency, err := m.meter.Float64Histogram(
-		semconv.HttpServerLatency,
+		semconv.HttpServerLatencyName,
 		metric.WithUnit("ms"),
 		metric.WithDescription("Measures the duration of HTTP request handling"),
 		metric.WithExplicitBucketBoundaries(semconv.HttpExplicitBucketBoundaries...),
@@ -86,10 +86,7 @@ func (m *httpMiddleware) serve(
 	defer span.End()
 
 	// Instantiate the wrapper writer to get the HTTP status code
-	rww := &respWriterWrapper{
-		ResponseWriter: w,
-		statusCode:     http.StatusOK,
-	}
+	rww := instantiateResponseWriterWrapper(w)
 
 	// Run the next
 	next.ServeHTTP(rww, r.WithContext(ctx))
@@ -117,6 +114,15 @@ func (m *httpMiddleware) getSpanAndMetricServerAttributes(
 
 	copy(metricAttrs, spanAttrs)
 	return spanAttrs, metricAttrs
+}
+
+func instantiateResponseWriterWrapper(
+	w http.ResponseWriter,
+) *respWriterWrapper {
+	return &respWriterWrapper{
+		ResponseWriter: w,
+		statusCode:     http.StatusOK,
+	}
 }
 
 type respWriterWrapper struct {
