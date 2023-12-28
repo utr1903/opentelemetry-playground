@@ -132,14 +132,8 @@ func (c *HttpClient) Do(
 	metricOpts := metric.WithAttributes(metricAttrs...)
 
 	// Record server latency
-	if err != nil {
-		elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
-		c.latency.Record(ctx, elapsedTime, metricOpts)
-	} else {
-
-		elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
-		c.latency.Record(ctx, elapsedTime, metricOpts)
-	}
+	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
+	c.latency.Record(ctx, elapsedTime, metricOpts)
 
 	return res, err
 }
