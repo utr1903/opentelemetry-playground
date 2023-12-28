@@ -1,12 +1,16 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/semconv/v1.24.0"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func Test_CommonAttributesCreatedSuccessfully(t *testing.T) {
@@ -71,5 +75,59 @@ func Test_CommonAttributesCreatedSuccessfully(t *testing.T) {
 			spanAttr.Value.AsString() != userAgent {
 			t.Errorf("%s is set incorrectly!", semconv.UserAgentOriginalName)
 		}
+	}
+}
+
+func Test_ExtractTraceContextCorrectly(t *testing.T) {
+	prop := propagation.TraceContext{}
+
+	// Generate a new context out of a new span
+	ctxMock := context.Background()
+	spanCtx := trace.NewSpanContext(
+		trace.SpanContextConfig{
+			TraceID: trace.TraceID{0x01},
+			SpanID:  trace.SpanID{0x01},
+		})
+	ctxMock = trace.ContextWithRemoteSpanContext(ctxMock, spanCtx)
+
+	// Inject the trace context into the headers
+	headers := http.Header{}
+	prop.Inject(ctxMock, propagation.HeaderCarrier(headers))
+
+	// Createa a mock HTTP server
+	mockServer := httptest.NewServer(
+		NewHandler(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+
+				// Get context of the request -> This should have the mock context
+				ctx := prop.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+				span := trace.SpanContextFromContext(ctx)
+
+				// Check whether the span ID is the same as what is defined in the mock context
+				if span.SpanID() != spanCtx.SpanID() {
+					t.Fatalf("testing remote SpanID: got %s, expected %s", span.SpanID(), spanCtx.SpanID())
+				}
+			}), "test"))
+	defer mockServer.Close()
+
+	// Create a request with mock context
+	r, err := http.NewRequestWithContext(
+		ctxMock,
+		http.MethodGet,
+		mockServer.URL,
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add headers to the request
+	r.Header = headers
+
+	// Perform HTTP request
+	c := http.Client{}
+	_, err = c.Do(r)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
