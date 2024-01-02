@@ -10,6 +10,7 @@ import (
 )
 
 // GENERAL
+// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/database
 const (
 	OtelStatusCodeName        = "otel.status_code"
 	OtelStatusCode            = attribute.Key(OtelStatusCodeName)
@@ -34,6 +35,7 @@ const (
 )
 
 // HTTP
+// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
 const (
 	HttpInterceptorName   = "http_interceptor"
 	HttpServerLatencyName = "http.server.request.duration"
@@ -47,7 +49,6 @@ const (
 	HttpResponseStatusCode     = attribute.Key(HttpResponseStatusCodeName)
 )
 
-// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
 var (
 	HttpExplicitBucketBoundaries = []float64{
 		0.005,
