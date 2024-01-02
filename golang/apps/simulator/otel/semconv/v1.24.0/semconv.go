@@ -6,10 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/IBM/sarama"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // GENERAL
+// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/general
 const (
 	OtelStatusCodeName        = "otel.status_code"
 	OtelStatusCode            = attribute.Key(OtelStatusCodeName)
@@ -34,6 +36,7 @@ const (
 )
 
 // HTTP
+// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
 const (
 	HttpClientName        = "http_client"
 	HttpClientLatencyName = "http.client.request.duration"
@@ -47,7 +50,6 @@ const (
 	HttpResponseStatusCode     = attribute.Key(HttpResponseStatusCodeName)
 )
 
-// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/http
 var (
 	HttpExplicitBucketBoundaries = []float64{
 		0.005,
@@ -197,13 +199,60 @@ func splitAddressAndPort(
 	return host, int(p)
 }
 
-// DATABASE
-
+// KAFKA
+// https://github.com/open-telemetry/semantic-conventions/tree/v1.24.0/docs/messaging
 const (
-	DatabaseSystem      = attribute.Key("db.system")
-	DatabaseUser        = attribute.Key("db.user")
-	DatabaseDbName      = attribute.Key("db.name")
-	DatabaseDbTable     = attribute.Key("db.table")
-	DatabaseDbOperation = attribute.Key("db.operation")
-	DatabaseDbStatement = attribute.Key("db.statement")
+	KafkaProducerName = "kafka_producer"
+
+	MessagingProducerLatencyName = "messaging.publish.duration"
+
+	MessagingSystemName          = "messaging.system"
+	MessagingSystem              = attribute.Key(MessagingSystemName)
+	MessagingOperationName       = "messaging.operation"
+	MessagingOperation           = attribute.Key(MessagingOperationName)
+	MessagingClientIdName        = "messaging.client_id"
+	MessagingClientId            = attribute.Key(MessagingClientIdName)
+	MessagingDestinationNameName = "messaging.destination.name"
+	MessagingDestinationName     = attribute.Key(MessagingDestinationNameName)
+
+	// KAFKA
+	MessagingKafkaDestinationPartitionName = "messaging.kafka.destination.partition"
+	MessagingKafkaDestinationPartition     = attribute.Key(MessagingKafkaDestinationPartitionName)
 )
+
+var (
+	MessagingExplicitBucketBoundaries = []float64{
+		0.005,
+		0.010,
+		0.025,
+		0.050,
+		0.075,
+		0.100,
+		0.250,
+		0.500,
+		0.750,
+		1.000,
+		2.500,
+		5.000,
+		7.500,
+		10.000,
+	}
+)
+
+func WithMessagingKafkaProducerAttributes(
+	msg *sarama.ProducerMessage,
+) []attribute.KeyValue {
+
+	numAttributes := 4 // Operation, system, destination & partition
+
+	// Create attributes array
+	attrs := make([]attribute.KeyValue, 0, numAttributes)
+
+	// Method, scheme & protocol version
+	attrs = append(attrs, MessagingSystem.String("kafka"))
+	attrs = append(attrs, MessagingOperation.String("publish"))
+	attrs = append(attrs, MessagingDestinationName.String(msg.Topic))
+	attrs = append(attrs, MessagingKafkaDestinationPartition.Int(int(msg.Partition)))
+
+	return attrs
+}
