@@ -2,15 +2,13 @@ package consumer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/IBM/sarama"
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/mysql"
-	"go.opentelemetry.io/otel"
+	otelkafka "github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/otel/kafka"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -101,9 +99,11 @@ func (k *KafkaConsumer) StartConsumerGroup(
 		return err
 	}
 
+	otelconsumer := otelkafka.New()
 	handler := groupHandler{
-		Opts:  k.Opts,
-		MySql: k.MySql,
+		Opts:     k.Opts,
+		MySql:    k.MySql,
+		Consumer: otelconsumer,
 	}
 
 	err = consumerGroup.Consume(
@@ -119,8 +119,9 @@ func (k *KafkaConsumer) StartConsumerGroup(
 }
 
 type groupHandler struct {
-	Opts  *Opts
-	MySql *mysql.MySqlDatabase
+	Opts     *Opts
+	MySql    *mysql.MySqlDatabase
+	Consumer *otelkafka.KafkaConsumer
 }
 
 func (g *groupHandler) Setup(_ sarama.ConsumerGroupSession) error {
@@ -138,26 +139,7 @@ func (g *groupHandler) ConsumeClaim(
 	for {
 		select {
 		case msg := <-claim.Messages():
-
-			// Create consumer span (parent)
-			ctx, consumerSpan := g.startConsumerSpan(msg)
-			defer consumerSpan.End()
-
-			// Parse name out of the message
-			name := string(msg.Value)
-
-			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message...")
-
-			// Store it into db
-			err := g.storeIntoDb(ctx, name)
-			if err != nil {
-				logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is failed.")
-				return nil
-			}
-
-			// Acknowledge message
-			session.MarkMessage(msg, "")
-			logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is succeeded.")
+			g.consumeMessage(session, msg)
 
 		case <-session.Context().Done():
 			return nil
@@ -165,38 +147,33 @@ func (g *groupHandler) ConsumeClaim(
 	}
 }
 
-func (g *groupHandler) startConsumerSpan(
+func (g *groupHandler) consumeMessage(
+	session sarama.ConsumerGroupSession,
 	msg *sarama.ConsumerMessage,
-) (
-	context.Context,
-	trace.Span,
-) {
-	headers := propagation.MapCarrier{}
+) error {
 
-	for _, recordHeader := range msg.Headers {
-		headers[string(recordHeader.Key)] = string(recordHeader.Value)
+	// Create consumer span (parent)
+	ctx := context.Background()
+	ctx, endConsume := g.Consumer.Intercept(ctx, msg, g.Opts.ConsumerGroupId)
+	defer endConsume()
+
+	// Parse name out of the message
+	name := string(msg.Value)
+
+	logger.Log(logrus.InfoLevel, ctx, name, "Consuming message...")
+
+	// Store it into db
+	err := g.storeIntoDb(ctx, name)
+	if err != nil {
+		logger.Log(logrus.ErrorLevel, ctx, name, "Consuming message is failed.")
+		return nil
 	}
 
-	propagator := otel.GetTextMapPropagator()
-	ctx := propagator.Extract(context.Background(), headers)
+	// Acknowledge message
+	session.MarkMessage(msg, "")
+	logger.Log(logrus.InfoLevel, ctx, name, "Consuming message is succeeded.")
 
-	ctx, span := otel.GetTracerProvider().Tracer(g.Opts.ServiceName).
-		Start(
-			ctx,
-			fmt.Sprintf("%s receive", msg.Topic),
-			trace.WithSpanKind(trace.SpanKindConsumer),
-			trace.WithAttributes(
-				semconv.MessagingSystem("kafka"),
-				semconv.MessagingKafkaConsumerGroup(g.Opts.ConsumerGroupId),
-				semconv.NetTransportTCP,
-				semconv.MessagingDestinationName(msg.Topic),
-				semconv.MessagingKafkaMessageOffset(int(msg.Offset)),
-				semconv.MessagingMessagePayloadSizeBytes(len(msg.Value)),
-				semconv.MessagingOperationReceive,
-				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
-			),
-		)
-	return ctx, span
+	return nil
 }
 
 func (g *groupHandler) storeIntoDb(

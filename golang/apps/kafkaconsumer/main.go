@@ -9,6 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/config"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/consumer"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/mysql"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/kafkaconsumer/otel"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
@@ -19,6 +20,9 @@ func main() {
 	// Create new config
 	config.NewConfig()
 	cfg := config.GetConfig()
+
+	// Initialize logger
+	logger.NewLogger(cfg)
 
 	// Get context
 	ctx := context.Background()

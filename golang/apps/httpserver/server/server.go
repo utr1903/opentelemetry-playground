@@ -11,23 +11,34 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
+	otelmysql "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/mysql"
+	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const SERVER string = "httpserver"
 
 type Server struct {
-	MySql *mysql.MySqlDatabase
+	MySql             *mysql.MySqlDatabase
+	MySqlOtelEnricher *otelmysql.MySqlEnricher
 }
 
 // Create a HTTP server instance
 func New(
 	db *mysql.MySqlDatabase,
 ) *Server {
+
 	return &Server{
 		MySql: db,
+		MySqlOtelEnricher: otelmysql.NewMysqlEnricher(
+			otelmysql.WithTracerName(SERVER),
+			otelmysql.WithServer(db.Opts.Server),
+			otelmysql.WithPort(db.Opts.Port),
+			otelmysql.WithUsername(db.Opts.Username),
+			otelmysql.WithDatabase(db.Opts.Database),
+			otelmysql.WithTable(db.Opts.Table),
+		),
 	}
 }
 
@@ -66,24 +77,26 @@ func (s *Server) Handler(
 	parentSpan := trace.SpanFromContext(r.Context())
 	defer parentSpan.End()
 
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Handler is triggered")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Handler is triggered")
 
 	// Perform database query
-	err := s.performQuery(w, r, &parentSpan)
+	err := s.performQuery(w, r, parentSpan)
 	if err != nil {
 		return
 	}
 
-	performPostprocessing(r, &parentSpan)
-	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), &parentSpan)
+	s.performPostprocessing(r, parentSpan)
+	s.createHttpResponse(&w, http.StatusOK, []byte("Success"), parentSpan)
 }
 
 // Performs the database query against the MySQL database
 func (s *Server) performQuery(
 	w http.ResponseWriter,
 	r *http.Request,
-	parentSpan *trace.Span,
+	parentSpan trace.Span,
 ) error {
+
+	user := s.getUser(r)
 
 	// Build query
 	dbOperation, dbStatement, err := s.createDbQuery(r)
@@ -93,34 +106,22 @@ func (s *Server) performQuery(
 	}
 
 	// Create database span
-	ctx, dbSpan := (*parentSpan).TracerProvider().
-		Tracer(SERVER).
-		Start(
-			r.Context(),
-			dbOperation+" "+s.MySql.Opts.Database+"."+s.MySql.Opts.Table,
-			trace.WithSpanKind(trace.SpanKindClient),
-		)
+	ctx, dbSpan := s.MySqlOtelEnricher.CreateSpan(
+		r.Context(),
+		parentSpan,
+		dbOperation,
+		dbStatement,
+	)
 	defer dbSpan.End()
-
-	// Set additional span attributes
-	dbSpanAttrs := s.getCommonDbSpanAttributes()
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBOperation(dbOperation))
-	dbSpanAttrs = append(dbSpanAttrs, semconv.DBStatement(dbStatement))
 
 	// Perform query
 	err = s.executeDbQuery(ctx, r, dbStatement)
 	if err != nil {
 		msg := "Executing DB query is failed."
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
+		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
-		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
-		dbSpan.SetAttributes(dbSpanAttrs...)
-
-		dbSpan.RecordError(err, trace.WithAttributes(
-			semconv.ExceptionEscaped(true),
-		))
+		// Add error to span
+		s.addErrorToSpan(dbSpan, msg, err)
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(err.Error()), parentSpan)
 		return err
@@ -130,21 +131,15 @@ func (s *Server) performQuery(
 	databaseConnectionError := r.URL.Query().Get("databaseConnectionError")
 	if databaseConnectionError == "true" {
 		msg := "Connection to database is lost."
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), msg)
+		logger.Log(logrus.ErrorLevel, ctx, user, msg)
 
-		// Add status code
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusCodeError)
-		dbSpanAttrs = append(dbSpanAttrs, semconv.OTelStatusDescription(msg))
-		dbSpan.SetAttributes(dbSpanAttrs...)
-
-		dbSpan.RecordError(err, trace.WithAttributes(
-			semconv.ExceptionEscaped(true),
-		))
+		// Add error to span
+		s.addErrorToSpan(dbSpan, msg, err)
 
 		s.createHttpResponse(&w, http.StatusInternalServerError, []byte(msg), parentSpan)
 		return errors.New("database connection lost")
 	}
-	dbSpan.SetAttributes(dbSpanAttrs...)
+
 	return nil
 }
 
@@ -156,7 +151,7 @@ func (s *Server) createDbQuery(
 	string,
 	error,
 ) {
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Building query...")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Building query...")
 
 	var dbOperation string
 	var dbStatement string
@@ -177,11 +172,11 @@ func (s *Server) createDbQuery(
 		dbOperation = "DELETE"
 		dbStatement = dbOperation + " FROM " + s.MySql.Opts.Table
 	default:
-		logger.Log(logrus.ErrorLevel, r.Context(), getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, r.Context(), s.getUser(r), "Method is not allowed.")
 		return "", "", errors.New("method not allowed")
 	}
 
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Query is built.")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Query is built.")
 	return dbOperation, dbStatement, nil
 }
 
@@ -192,9 +187,9 @@ func (s *Server) executeDbQuery(
 	dbStatement string,
 ) error {
 
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Executing query...")
+	user := s.getUser(r)
+	logger.Log(logrus.InfoLevel, ctx, user, "Executing query...")
 
-	user := getUser(r)
 	switch r.Method {
 	case http.MethodGet:
 		// Perform a query
@@ -229,11 +224,11 @@ func (s *Server) executeDbQuery(
 			return err
 		}
 	default:
-		logger.Log(logrus.ErrorLevel, ctx, getUser(r), "Method is not allowed.")
+		logger.Log(logrus.ErrorLevel, ctx, user, "Method is not allowed.")
 		return errors.New("method not allowed")
 	}
 
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Query is executed.")
+	logger.Log(logrus.InfoLevel, ctx, user, "Query is executed.")
 	return nil
 }
 
@@ -242,36 +237,23 @@ func (s *Server) createHttpResponse(
 	w *http.ResponseWriter,
 	statusCode int,
 	body []byte,
-	serverSpan *trace.Span,
+	serverSpan trace.Span,
 ) {
 	(*w).WriteHeader(statusCode)
 	(*w).Write(body)
 
 	attrs := []attribute.KeyValue{
-		semconv.HTTPStatusCode(statusCode),
+		semconv.HttpResponseStatusCode.Int(statusCode),
 	}
-	(*serverSpan).SetAttributes(attrs...)
-}
-
-// Returns common MySQL database span attributes
-func (s *Server) getCommonDbSpanAttributes() []attribute.KeyValue {
-	return []attribute.KeyValue{
-		semconv.DBSystemMySQL,
-		semconv.DBUser(s.MySql.Opts.Username),
-		semconv.NetPeerName(s.MySql.Opts.Server),
-		// semconv.NetPeerPort(int(s.MySql.Opts.Port)),
-		semconv.NetTransportTCP,
-		semconv.DBName(s.MySql.Opts.Database),
-		semconv.DBSQLTable(s.MySql.Opts.Table),
-	}
+	serverSpan.SetAttributes(attrs...)
 }
 
 // Performs a postprocessing step
-func performPostprocessing(
+func (s *Server) performPostprocessing(
 	r *http.Request,
-	parentSpan *trace.Span,
+	parentSpan trace.Span,
 ) {
-	ctx, processingSpan := (*parentSpan).TracerProvider().
+	ctx, processingSpan := parentSpan.TracerProvider().
 		Tracer(SERVER).
 		Start(
 			r.Context(),
@@ -280,26 +262,26 @@ func performPostprocessing(
 		)
 	defer processingSpan.End()
 
-	produceSchemaNotFoundInCacheWarning(ctx, r)
+	s.produceSchemaNotFoundInCacheWarning(ctx, r)
 }
 
-func produceSchemaNotFoundInCacheWarning(
+func (s *Server) produceSchemaNotFoundInCacheWarning(
 	ctx context.Context,
 	r *http.Request,
 ) {
-	logger.Log(logrus.InfoLevel, ctx, getUser(r), "Postprocessing...")
+	logger.Log(logrus.InfoLevel, ctx, s.getUser(r), "Postprocessing...")
 	schemaNotFoundInCacheWarning := r.URL.Query().Get("schemaNotFoundInCacheWarning")
 	if schemaNotFoundInCacheWarning == "true" {
-		user := getUser(r)
+		user := s.getUser(r)
 		logger.Log(logrus.WarnLevel, ctx, user, "Processing schema not found in cache. Calculating from scratch.")
 		time.Sleep(time.Millisecond * 500)
 	} else {
 		time.Sleep(time.Millisecond * 10)
 	}
-	logger.Log(logrus.InfoLevel, r.Context(), getUser(r), "Postprocessing is complete.")
+	logger.Log(logrus.InfoLevel, r.Context(), s.getUser(r), "Postprocessing is complete.")
 }
 
-func getUser(
+func (s *Server) getUser(
 	r *http.Request,
 ) string {
 
@@ -308,4 +290,23 @@ func getUser(
 		user = "_anonymous_"
 	}
 	return user
+}
+
+// Add error to span
+func (s *Server) addErrorToSpan(
+	span trace.Span,
+	description string,
+	err error,
+) {
+
+	dbSpanAttrs := []attribute.KeyValue{
+		semconv.OtelStatusCode.String("ERROR"),
+		semconv.OtelStatusDescription.String(description),
+	}
+	span.SetAttributes(dbSpanAttrs...)
+	span.RecordError(
+		err,
+		trace.WithAttributes(
+			semconv.ExceptionEscaped.Bool(true),
+		))
 }

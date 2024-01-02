@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/logger"
+
+	otelkafka "github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel/kafka"
 )
 
 type Opts struct {
@@ -100,8 +100,11 @@ func (k *KafkaConsumerSimulator) Simulate(
 	// Create producer
 	producer := k.createKafkaProducer()
 
+	// Wrap OTel around the producer
+	otelproducer := otelkafka.New(producer)
+
 	// Publish messages
-	go k.publishMessages(producer, users)
+	go k.publishMessages(otelproducer, users)
 }
 
 // Creates Kafta topic to publish the messages into
@@ -185,7 +188,7 @@ func (k *KafkaConsumerSimulator) createKafkaProducer() sarama.AsyncProducer {
 
 // Publish messages to topic
 func (k *KafkaConsumerSimulator) publishMessages(
-	producer sarama.AsyncProducer,
+	otelproducer *otelkafka.KafkaProducer,
 	users []string,
 ) {
 
@@ -195,53 +198,22 @@ func (k *KafkaConsumerSimulator) publishMessages(
 			// Make request after each interval
 			time.Sleep(time.Duration(k.Opts.RequestInterval) * time.Millisecond)
 
-			// Get a random name
-			name := users[k.Randomizer.Intn(len(users))]
+			// Get a random user
+			user := users[k.Randomizer.Intn(len(users))]
 
 			// Create message
 			msg := sarama.ProducerMessage{
 				Topic: k.Opts.BrokerTopic,
-				Value: sarama.ByteEncoder([]byte(name)),
+				Value: sarama.ByteEncoder([]byte(user)),
 			}
 
 			// Inject tracing info into message
 			ctx := context.Background()
-			span := k.createProducerSpan(ctx, &msg)
-			defer span.End()
 
 			// Publish message
-			producer.Input() <- &msg
-			<-producer.Successes()
+			logger.Log(logrus.InfoLevel, ctx, user, "Publishing message...")
+			otelproducer.Publish(ctx, &msg)
+			logger.Log(logrus.InfoLevel, ctx, user, "Message published successfully.")
 		}()
 	}
-}
-
-func (k *KafkaConsumerSimulator) createProducerSpan(
-	ctx context.Context,
-	msg *sarama.ProducerMessage,
-) trace.Span {
-	spanContext, span := otel.GetTracerProvider().Tracer(k.Opts.ServiceName).
-		Start(
-			ctx,
-			fmt.Sprintf("%s publish", msg.Topic),
-			trace.WithSpanKind(trace.SpanKindProducer),
-			trace.WithAttributes(
-				semconv.PeerService("kafka"),
-				semconv.NetTransportTCP,
-				semconv.MessagingSystem("kafka"),
-				semconv.MessagingDestinationName(msg.Topic),
-				semconv.MessagingOperationPublish,
-				semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
-			),
-		)
-
-	carrier := propagation.MapCarrier{}
-	propagator := otel.GetTextMapPropagator()
-	propagator.Inject(spanContext, carrier)
-
-	for key, value := range carrier {
-		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(key), Value: []byte(value)})
-	}
-
-	return span
 }

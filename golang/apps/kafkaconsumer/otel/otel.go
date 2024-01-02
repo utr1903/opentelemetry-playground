@@ -2,7 +2,9 @@ package otel
 
 import (
 	"context"
+	"io"
 	"os"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -83,6 +85,7 @@ func ShutdownTraceProvider(
 	}
 }
 
+// Creates new meter provider
 func NewMetricProvider(
 	ctx context.Context,
 ) *sdkmetric.MeterProvider {
@@ -93,18 +96,30 @@ func NewMetricProvider(
 	case "otlp":
 		exp, err = otlpmetricgrpc.New(ctx)
 	default:
-		exp, err = stdoutmetric.New()
+		isTesting := strings.HasSuffix(os.Args[0], ".test")
+		var w io.Writer
+		if isTesting {
+			w = io.Discard
+		} else {
+			w = os.Stdout
+		}
+		exp, err = stdoutmetric.New(
+			stdoutmetric.WithPrettyPrint(),
+			stdoutmetric.WithWriter(w),
+		)
 	}
 
 	if err != nil {
 		panic(err)
 	}
 
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
 	otel.SetMeterProvider(mp)
 	return mp
 }
 
+// Shuts down meter provider
 func ShutdownMetricProvider(
 	ctx context.Context,
 	mp *sdkmetric.MeterProvider,

@@ -14,6 +14,10 @@ while (( "$#" )); do
       language="$2"
       shift
       ;;
+    --otlp)
+      otlpEndpoint="$2"
+      shift
+      ;;
     --build)
       build="true"
       shift
@@ -41,6 +45,11 @@ if [[ $language != "golang" && $language != "java" ]]; then
   exit 1
 fi
 
+# OTLP endpoint
+if [[ $otlpEndpoint == "" ]]; then
+  otlpEndpoint="http://nrotelk8s-dep-rec-collector-headless.monitoring.svc.cluster.local:4317"
+fi
+
 #####################
 ### Set variables ###
 #####################
@@ -51,13 +60,13 @@ clusterName="opentelemetry-playground"
 # kafka
 declare -A kafka
 kafka["name"]="kafka"
-kafka["namespace"]="otel"
-kafka["topic"]="otel"
+kafka["namespace"]="${language}"
+kafka["topic"]="${language}"
 
 # mysql
 declare -A mysql
 mysql["name"]="mysql"
-mysql["namespace"]="otel"
+mysql["namespace"]="${language}"
 mysql["username"]="root"
 mysql["password"]="verysecretpassword"
 mysql["port"]=3306
@@ -67,7 +76,7 @@ mysql["table"]="names"
 # otelcollector
 declare -A otelcollector
 otelcollector["name"]="otel-collector"
-otelcollector["namespace"]="otel"
+otelcollector["namespace"]="${language}"
 otelcollector["mode"]="deployment"
 otelcollector["prometheusPort"]=9464
 
@@ -75,7 +84,7 @@ otelcollector["prometheusPort"]=9464
 declare -A httpserver
 httpserver["name"]="httpserver-${language}"
 httpserver["imageName"]="${repoName}:${httpserver[name]}-${platform}"
-httpserver["namespace"]="otel"
+httpserver["namespace"]="${language}"
 httpserver["replicas"]=2
 httpserver["port"]=8080
 
@@ -83,14 +92,14 @@ httpserver["port"]=8080
 declare -A kafkaconsumer
 kafkaconsumer["name"]="kafkaconsumer-${language}"
 kafkaconsumer["imageName"]="${repoName}:${kafkaconsumer[name]}-${platform}"
-kafkaconsumer["namespace"]="otel"
+kafkaconsumer["namespace"]="${language}"
 kafkaconsumer["replicas"]=2
 
 # simulator
 declare -A simulator
 simulator["name"]="simulator-${language}"
 simulator["imageName"]="${repoName}:${simulator[name]}-${platform}"
-simulator["namespace"]="otel"
+simulator["namespace"]="${language}"
 simulator["replicas"]=3
 simulator["port"]=8080
 simulator["httpInterval"]=2000
@@ -139,6 +148,8 @@ helm upgrade ${kafka[name]} \
   --debug \
   --create-namespace \
   --namespace=${kafka[namespace]} \
+  --set listeners.client.protocol=PLAINTEXT \
+  --version "26.6.2" \
   "bitnami/kafka"
 
 # mysql
@@ -150,54 +161,8 @@ helm upgrade ${mysql[name]} \
   --namespace=${mysql[namespace]} \
   --set auth.rootPassword=${mysql[password]} \
   --set auth.database=${mysql[database]} \
-    "bitnami/mysql"
-
-# otelcollector
-helm upgrade ${otelcollector[name]} \
-  --install \
-  --wait \
-  --debug \
-  --create-namespace \
-  --namespace ${otelcollector[namespace]} \
-  --set mode=${otelcollector[mode]} \
-  --set presets.kubernetesAttributes.enabled=true \
-  --set config.receivers.jaeger=null \
-  --set config.receivers.prometheus=null \
-  --set config.receivers.zipkin=null \
-  --set config.processors.cumulativetodelta.include.match_type="regexp" \
-  --set config.processors.cumulativetodelta.include.metrics[0]="http*" \
-  --set config.processors.cumulativetodelta.include.metrics[1]="process*" \
-  --set config.processors.attributes.actions[0].key="k8s.cluster.name" \
-  --set config.processors.attributes.actions[0].value=$clusterName \
-  --set config.processors.attributes.actions[0].action="upsert" \
-  --set config.processors.k8sattributes.passthrough=false \
-  --set config.processors.k8sattributes.extract.metadata[0]="k8s.node.name" \
-  --set config.processors.k8sattributes.extract.metadata[1]="k8s.namespace.name" \
-  --set config.processors.k8sattributes.extract.metadata[2]="k8s.pod.name" \
-  --set config.exporters.logging=null \
-  --set config.exporters.otlp.endpoint="otlp.eu01.nr-data.net:4317" \
-  --set config.exporters.otlp.tls.insecure=false \
-  --set config.exporters.otlp.headers.api-key=$NEWRELIC_LICENSE_KEY \
-  --set config.service.pipelines.traces.receivers[0]="otlp" \
-  --set config.service.pipelines.traces.processors[0]="k8sattributes" \
-  --set config.service.pipelines.traces.processors[1]="attributes" \
-  --set config.service.pipelines.traces.processors[2]="memory_limiter" \
-  --set config.service.pipelines.traces.processors[3]="batch" \
-  --set config.service.pipelines.traces.exporters[0]="otlp" \
-  --set config.service.pipelines.metrics.receivers[0]="otlp" \
-  --set config.service.pipelines.metrics.processors[0]="cumulativetodelta" \
-  --set config.service.pipelines.metrics.processors[1]="k8sattributes" \
-  --set config.service.pipelines.metrics.processors[2]="attributes" \
-  --set config.service.pipelines.metrics.processors[3]="memory_limiter" \
-  --set config.service.pipelines.metrics.processors[4]="batch" \
-  --set config.service.pipelines.metrics.exporters[0]="otlp" \
-  --set config.service.pipelines.logs.receivers[0]="otlp" \
-  --set config.service.pipelines.logs.processors[0]="k8sattributes" \
-  --set config.service.pipelines.logs.processors[1]="attributes" \
-  --set config.service.pipelines.logs.processors[2]="memory_limiter" \
-  --set config.service.pipelines.logs.processors[3]="batch" \
-  --set config.service.pipelines.logs.exporters[0]="otlp" \
-  "open-telemetry/opentelemetry-collector"
+  --version "9.15.0" \
+  "bitnami/mysql"
 
 # httpserver
 helm upgrade ${httpserver[name]} \
@@ -219,7 +184,7 @@ helm upgrade ${httpserver[name]} \
   --set mysql.database=${mysql[database]} \
   --set mysql.table=${mysql[table]} \
   --set otel.exporter="otlp" \
-  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  --set otlp.endpoint="${otlpEndpoint}" \
   "../helm/httpserver"
 
 # kafkaconsumer
@@ -244,7 +209,7 @@ helm upgrade ${kafkaconsumer[name]} \
   --set mysql.database=${mysql[database]} \
   --set mysql.table=${mysql[table]} \
   --set otel.exporter="otlp" \
-  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  --set otlp.endpoint="${otlpEndpoint}" \
   "../helm/kafkaconsumer"
 
 # simulator
@@ -263,9 +228,9 @@ helm upgrade ${simulator[name]} \
   --set httpserver.requestInterval=${simulator[httpInterval]} \
   --set httpserver.endpoint="${httpserver[name]}.${httpserver[namespace]}.svc.cluster.local" \
   --set httpserver.port="${httpserver[port]}" \
-  --set kafka.address="${kafka[name]}-0.${kafka[name]}-headless.${kafka[namespace]}.svc.cluster.local:9092" \
+  --set kafka.address="${kafka[name]}.${kafka[namespace]}.svc.cluster.local:9092" \
   --set kafka.topic=${kafka[topic]} \
   --set kafka.requestInterval=${simulator[kafkaInterval]} \
   --set otel.exporter="otlp" \
-  --set otlp.endpoint="http://${otelcollector[name]}-opentelemetry-collector.${otelcollector[namespace]}.svc.cluster.local:4317" \
+  --set otlp.endpoint="${otlpEndpoint}" \
   "../helm/simulator"

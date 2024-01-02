@@ -10,8 +10,8 @@ import (
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/logger"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/mysql"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel"
+	otelhttp "github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/otel/http"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/httpserver/server"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 )
 
