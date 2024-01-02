@@ -10,7 +10,8 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/logger"
-	"github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel/kafka"
+
+	otelkafka "github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel/kafka"
 )
 
 type Opts struct {
@@ -100,7 +101,7 @@ func (k *KafkaConsumerSimulator) Simulate(
 	producer := k.createKafkaProducer()
 
 	// Wrap OTel around the producer
-	otelproducer := kafka.New(producer)
+	otelproducer := otelkafka.New(producer)
 
 	// Publish messages
 	go k.publishMessages(otelproducer, users)
@@ -187,7 +188,7 @@ func (k *KafkaConsumerSimulator) createKafkaProducer() sarama.AsyncProducer {
 
 // Publish messages to topic
 func (k *KafkaConsumerSimulator) publishMessages(
-	otelproducer *kafka.KafkaProducer,
+	otelproducer *otelkafka.KafkaProducer,
 	users []string,
 ) {
 

@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/IBM/sarama"
 	semconv "github.com/utr1903/opentelemetry-playground/golang/apps/simulator/otel/semconv/v1.24.0"
@@ -61,6 +62,9 @@ func (k *KafkaProducer) Publish(
 	ctx context.Context,
 	msg *sarama.ProducerMessage,
 ) {
+
+	produceStartTime := time.Now()
+
 	// Inject tracing info into message
 	span := k.createProducerSpan(ctx, msg)
 	defer span.End()
@@ -68,6 +72,13 @@ func (k *KafkaProducer) Publish(
 	// Publish message
 	k.producer.Input() <- msg
 	<-k.producer.Successes()
+
+	// Record producer latency
+	elapsedTime := float64(time.Since(produceStartTime)) / float64(time.Millisecond)
+	k.latency.Record(ctx, elapsedTime,
+		metric.WithAttributes(
+			semconv.WithMessagingKafkaProducerAttributes(msg)...,
+		))
 }
 
 func (k *KafkaProducer) createProducerSpan(
